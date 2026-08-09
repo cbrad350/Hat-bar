@@ -1,9 +1,14 @@
 name: Deploy to GitHub Pages
 
 # Publishes the register app at https://<owner>.github.io/Hat-bar/.
-# `enablement: true` asks GitHub to turn Pages on the first time this runs, so
-# nobody has to visit Settings → Pages by hand. Re-deploys on every push to main
-# (including the Sync Square catalog robot's commits, so a fresh sync goes live).
+#
+# One-time prerequisite: Settings → Pages → Source = "GitHub Actions". This job
+# cannot turn Pages on itself — the built-in workflow token is refused by the
+# create-Pages-site endpoint ("Resource not accessible by integration"), and on
+# a private repo Pages additionally requires a paid plan (GitHub Pro or above).
+#
+# Re-deploys on every push to main, and after each catalog sync, so the live
+# site always matches the repo.
 on:
   push:
     branches: [main]
@@ -35,8 +40,6 @@ jobs:
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
-        with:
-          enablement: true
 
       - name: Upload site
         uses: actions/upload-pages-artifact@v3

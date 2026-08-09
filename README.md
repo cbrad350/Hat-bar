@@ -67,9 +67,13 @@ from Square or attached from the camera roll (tap the item's circle in Edit Menu
 
 ## Putting it on an iPhone
 
-1. Enable **GitHub Pages**: repo **Settings → Pages**, *Source* "Deploy from a
-   branch", branch `main`, folder `/ (root)` → live at
+1. Enable **GitHub Pages**: repo **Settings → Pages**, *Source* → **GitHub
+   Actions**. The `Deploy to GitHub Pages` workflow then publishes the site on
+   every push to `main` (and after each catalog sync), live at
    `https://<username>.github.io/Hat-bar/`.
+   *Private repos need a paid GitHub plan (Pro or above) for Pages; public repos
+   are free. Pages cannot be switched on from a workflow — this click is
+   one-time and unavoidable.*
 2. Open that URL in **Safari** → **Share → Add to Home Screen**.
 
 It launches full-screen from its own icon and works offline (the synced catalog and
