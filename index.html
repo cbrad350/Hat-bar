@@ -37,8 +37,9 @@
     font-size: 16px;
     -webkit-font-smoothing: antialiased;
     padding-bottom: calc(130px + env(safe-area-inset-bottom));
+    overscroll-behavior-y: none; /* no accidental pull-to-refresh mid-rush */
   }
-  button { font: inherit; color: inherit; border: none; background: none; padding: 0; cursor: pointer; }
+  button { font: inherit; color: inherit; border: none; background: none; padding: 0; cursor: pointer; touch-action: manipulation; }
   input, textarea { font: inherit; color: inherit; }
 
   /* ---------- Header masthead ---------- */
@@ -96,11 +97,18 @@
   }
   .sec.open .sec-head { border-radius: var(--radius) var(--radius) 0 0; }
   .sec-titles { flex: 1; min-width: 0; }
+  .sec-num {
+    width: 26px; height: 26px; border-radius: 50%; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--serif); font-weight: 700; font-size: 14px;
+    color: var(--ink-soft); border: 1.5px solid var(--line-deep);
+  }
+  .sec-num.done { background: var(--accent); border-color: var(--accent); color: #fff; font-size: 13px; }
   .sec-title {
     font-family: var(--serif); font-weight: 700; font-size: 17px;
     letter-spacing: 0.16em; text-transform: uppercase;
   }
-  .sec-status { font-size: 13px; color: var(--ink-soft); margin-top: 2px; }
+  .sec-status { font-size: 13px; color: var(--ink-soft); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .sec-status.picked { color: var(--accent-deep); font-weight: 600; }
   .sec-chev { color: var(--ink-soft); font-size: 13px; transition: transform 0.2s ease; flex: none; }
   .sec.open .sec-chev { transform: rotate(180deg); }
@@ -126,7 +134,7 @@
     background: var(--accent-soft); border: 1px solid var(--line-deep);
     display: flex; align-items: center; justify-content: center;
   }
-  .pick-row .thumb { width: 56px; height: 56px; border-radius: 14px; }
+  .pick-row .thumb { width: 64px; height: 64px; border-radius: 14px; }
   .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .thumb .mono {
     font-family: var(--serif); font-weight: 700; font-size: 15px;
@@ -192,9 +200,11 @@
   }
   @media (min-width: 560px) { .total-bar { border-radius: 18px 18px 0 0; } }
   .receipt { max-height: 0; overflow: hidden; transition: max-height 0.25s ease; }
-  .total-bar.open .receipt { max-height: 45vh; overflow-y: auto; }
+  .total-bar.open .receipt { max-height: 45vh; max-height: 45dvh; overflow-y: auto; }
   .receipt-inner { padding: 4px 2px 10px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
   .receipt-line { display: flex; justify-content: space-between; padding: 4px 0; font-size: 15px; gap: 12px; }
+  button.receipt-line { width: 100%; text-align: left; border-radius: 8px; }
+  button.receipt-line:active { background: var(--card-deep); }
   .receipt-line .r-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .receipt-line .r-price { font-variant-numeric: tabular-nums; font-weight: 600; }
   .receipt-line.r-discount .r-name, .receipt-line.r-discount .r-price { color: var(--good); font-weight: 700; }
@@ -204,7 +214,13 @@
   .total-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: var(--ink-soft); display: flex; align-items: center; gap: 6px; }
   .chevron { display: inline-block; transition: transform 0.2s ease; font-size: 10px; }
   .total-bar.open .chevron { transform: rotate(180deg); }
-  .total-amount { font-family: var(--serif); font-size: 29px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .total-amount { font-family: var(--serif); font-size: 29px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; transform-origin: left center; }
+  @keyframes total-bump {
+    0% { transform: scale(1.07); color: var(--accent-deep); }
+    100% { transform: scale(1); }
+  }
+  .total-amount.bump { animation: total-bump 0.35s ease; }
+  @media (prefers-reduced-motion: reduce) { .total-amount.bump { animation: none; } }
   .new-hat-btn {
     border: 1.5px solid var(--line-deep); color: var(--ink-soft); font-weight: 650; font-size: 13.5px;
     padding: 12px 13px; border-radius: 13px; flex: none; min-height: 48px;
@@ -215,6 +231,7 @@
     letter-spacing: 0.02em;
   }
   .charge-btn:active { background: var(--accent-deep); }
+  .charge-btn.dim { opacity: 0.45; }
 
   /* ---------- Toast ---------- */
   .toast {
@@ -232,7 +249,9 @@
   /* ---------- Modal ---------- */
   .overlay {
     position: fixed; inset: 0; background: rgba(36, 27, 18, 0.45); z-index: 50;
-    display: flex; align-items: center; justify-content: center; padding: 24px;
+    display: flex; align-items: flex-start; justify-content: center;
+    /* sit high so the iOS keyboard never covers the sheet's input */
+    padding: calc(11vh + env(safe-area-inset-top)) 24px 24px;
   }
   .sheet {
     background: var(--card); border-radius: 18px; padding: 20px;
@@ -467,14 +486,14 @@ function computeBill() {
     const sel = tally.selections[section.id];
     if (!sel) continue;
     const item = section.items.find((i) => i.id === sel.itemId);
-    if (item) lines.push({ name: item.name, price: Number(sel.price) || 0 });
+    if (item) lines.push({ name: item.name, price: Number(sel.price) || 0, sid: section.id });
   }
   for (const section of catalog.sections) {
     if (section.type === "single") continue;
     for (const item of section.items) {
       const entry = tally.items[item.id];
       if (entry && entry.qty > 0) {
-        lines.push({ name: item.name + (entry.qty > 1 ? " ×" + entry.qty : ""), price: entry.qty * (Number(entry.price) || 0) });
+        lines.push({ name: item.name + (entry.qty > 1 ? " ×" + entry.qty : ""), price: entry.qty * (Number(entry.price) || 0), sid: section.id });
       }
     }
   }
@@ -511,13 +530,17 @@ function sectionStatus(section) {
     const item = section.items.find((i) => i.id === sel.itemId);
     return item ? { text: item.name + " · " + fmt(sel.price), picked: true } : { text: "Tap to choose", picked: false };
   }
-  let qty = 0, sum = 0;
+  const parts = [];
+  let sum = 0;
   for (const item of section.items) {
     const entry = tally.items[item.id];
-    if (entry && entry.qty > 0) { qty += entry.qty; sum += entry.qty * (Number(entry.price) || 0); }
+    if (entry && entry.qty > 0) {
+      parts.push(item.name + (entry.qty > 1 ? " ×" + entry.qty : ""));
+      sum += entry.qty * (Number(entry.price) || 0);
+    }
   }
-  return qty > 0
-    ? { text: qty + (qty === 1 ? " item" : " items") + " · +" + fmt(sum), picked: true }
+  return parts.length
+    ? { text: parts.join(", ") + " · +" + fmt(sum), picked: true }
     : { text: "Mix & match", picked: false };
 }
 
@@ -525,12 +548,15 @@ function renderTally() {
   const main = $("#main");
   let html = "";
 
+  let stepNo = 0;
   catalog.sections.forEach((section, si) => {
     if (!section.items.length) return;
+    stepNo++;
     const open = expandedId === section.id;
     const status = sectionStatus(section);
     html += '<section class="sec' + (open ? " open" : "") + '" id="sec-' + section.id + '">' +
-      '<button class="sec-head" data-toggle="' + section.id + '">' +
+      '<button class="sec-head" data-toggle="' + section.id + '" aria-expanded="' + open + '">' +
+      '<span class="sec-num' + (status.picked ? " done" : "") + '">' + (status.picked ? "✓" : stepNo) + "</span>" +
       '<div class="sec-titles"><div class="sec-title">' + esc(section.name) + "</div>" +
       '<div class="sec-status' + (status.picked ? " picked" : "") + '">' + esc(status.text) + "</div></div>" +
       '<span class="sec-chev">▼</span></button>';
@@ -575,7 +601,9 @@ function renderTally() {
         }
       }
       if (section.type !== "single") {
-        html += '<button class="next-btn" data-next="' + si + '">Next section ↓</button>';
+        const nextSec = catalog.sections.slice(si + 1).find((s) => s.items.length);
+        html += '<button class="next-btn" data-next="' + si + '">' +
+          (nextSec ? "Next: " + esc(nextSec.name) + " ↓" : "Done — review &amp; charge ↓") + "</button>";
       }
       html += "</div>";
     }
@@ -589,7 +617,7 @@ function renderTally() {
       '<span class="applied-amt">−' + fmt(bill.discount.amount) + " off</span>" +
       '<button class="applied-remove" id="discount-remove">Remove</button></div>';
   } else {
-    html += '<div class="discount-row"><input id="discount-input" placeholder="Discount code" autocapitalize="characters" autocorrect="off">' +
+    html += '<div class="discount-row"><input id="discount-input" placeholder="Discount code" autocapitalize="characters" autocorrect="off" enterkeyhint="go">' +
       '<button class="apply-btn" id="discount-apply">Apply</button></div>';
   }
   html += "</div>";
@@ -619,7 +647,7 @@ function renderTally() {
           tally.selections[sid] = { itemId: iid, price };
           save(TALLY_KEY, tally);
           advanceFrom(sid);
-        });
+        }, "Select");
       } else {
         tally.selections[sid] = { itemId: iid, price: Number(item.price) || 0 };
         save(TALLY_KEY, tally);
@@ -649,7 +677,7 @@ function renderTally() {
         entry.price = price;
         save(TALLY_KEY, tally);
         renderTally();
-      });
+      }, "Save");
     });
   });
   main.querySelectorAll("[data-next]").forEach((btn) => {
@@ -731,7 +759,15 @@ function renderTotalBar() {
   if (bar.hidden) return;
 
   const bill = computeBill();
-  $("#total-amount").textContent = fmt(bill.total);
+  const amtEl = $("#total-amount");
+  const amtText = fmt(bill.total);
+  if (amtEl.textContent !== amtText) {
+    amtEl.textContent = amtText;
+    amtEl.classList.remove("bump");
+    void amtEl.offsetWidth; // restart the animation
+    amtEl.classList.add("bump");
+  }
+  $("#charge-btn").classList.toggle("dim", bill.total <= 0);
 
   const count = enhancementCount();
   const hasSingles = catalog.sections.some((s) => s.type === "single" && s.items.length);
@@ -744,7 +780,7 @@ function renderTotalBar() {
     ? '<div class="receipt-inner">' +
       (bill.lines.length
         ? bill.lines.map((l) =>
-            '<div class="receipt-line"><span class="r-name">' + esc(l.name) + '</span><span class="r-price">' + fmt(l.price) + "</span></div>"
+            '<button class="receipt-line" data-goto="' + l.sid + '"><span class="r-name">' + esc(l.name) + '</span><span class="r-price">' + fmt(l.price) + "</span></button>"
           ).join("")
         : '<div class="receipt-line"><span class="r-name" style="color:var(--ink-soft)">Nothing on this hat yet</span></div>') +
       (bill.discount
@@ -755,6 +791,16 @@ function renderTotalBar() {
         : "") +
       "</div>"
     : "";
+
+  // Tap a receipt line to jump back to its section for a one-tap correction.
+  $("#receipt").querySelectorAll("[data-goto]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      receiptOpen = false;
+      expandedId = btn.dataset.goto;
+      scrollTargetId = "sec-" + expandedId;
+      renderTally();
+    });
+  });
 }
 
 /* ================= New hat / toast ================= */
@@ -792,23 +838,24 @@ $("#toast-undo").addEventListener("click", () => {
 
 function closeModal() { $("#modal-root").innerHTML = ""; }
 
-function openPriceSheet(item, startPrice, onSave) {
+function openPriceSheet(item, startPrice, onSave, actionLabel) {
   $("#modal-root").innerHTML =
     '<div class="overlay" id="overlay"><div class="sheet">' +
     "<h3>" + esc(item.name) + "</h3>" +
     '<div class="sheet-sub">Priced from ' + fmt(Number(item.price) || 0) + " — enter the price for this hat.</div>" +
     '<div class="price-entry"><span class="cur">$</span>' +
-    '<input id="sheet-price" inputmode="decimal" value="' + (Number(startPrice) || 0) + '"></div>' +
+    '<input id="sheet-price" inputmode="decimal" enterkeyhint="done" value="' + (Number(startPrice) || 0) + '"></div>' +
     '<div class="sheet-btns">' +
     '<button class="sheet-btn ghost" id="sheet-cancel">Cancel</button>' +
-    '<button class="sheet-btn primary" id="sheet-save">Add</button>' +
+    '<button class="sheet-btn primary" id="sheet-save">' + esc(actionLabel || "Add") + "</button>" +
     "</div></div></div>";
   const input = $("#sheet-price");
   input.focus();
   input.select();
   const commit = () => {
     const n = parseFloat(String(input.value).replace(/[^0-9.]/g, ""));
-    onSave(isNaN(n) || n < 0 ? 0 : Math.round(n * 100) / 100);
+    if (isNaN(n)) { input.focus(); input.select(); return; } // blank taps don't add $0 lines
+    onSave(n < 0 ? 0 : Math.round(n * 100) / 100);
     closeModal();
   };
   $("#sheet-save").addEventListener("click", commit);
