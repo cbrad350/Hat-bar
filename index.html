@@ -1,0 +1,1555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Hat Bar">
+<meta name="theme-color" content="#CDC1B0">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<title>Hat Bar Tally</title>
+<style>
+  :root {
+    --bg: #CDC1B0;            /* warm taupe, like the printed menu */
+    --card: #F6F1E7;          /* cream */
+    --card-deep: #EFE8DA;
+    --ink: #241B12;           /* espresso */
+    --ink-soft: #7C6C58;
+    --accent: #9C5B33;        /* copper, like the wordmark */
+    --accent-deep: #7C4425;
+    --accent-soft: #E4D6C2;
+    --line: #DDD2BF;
+    --line-deep: #B9AC97;
+    --good: #4A6B4F;
+    --danger: #A0402F;
+    --radius: 16px;
+    --serif: ui-serif, "New York", Georgia, "Times New Roman", serif;
+    --shadow: 0 2px 6px rgba(36, 27, 18, 0.10);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+    padding-bottom: calc(130px + env(safe-area-inset-bottom));
+    overscroll-behavior-y: none; /* no accidental pull-to-refresh mid-rush */
+  }
+  button { font: inherit; color: inherit; border: none; background: none; padding: 0; cursor: pointer; touch-action: manipulation; }
+  input, textarea { font: inherit; color: inherit; }
+
+  /* ---------- Header masthead ---------- */
+  header {
+    position: sticky; top: 0; z-index: 20;
+    background: var(--bg);
+    padding: calc(10px + env(safe-area-inset-top)) 16px 8px;
+    border-bottom: 1px solid var(--line-deep);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .masthead { flex: 1; min-width: 0; text-align: left; }
+  .logo-img { display: block; height: 48px; max-width: 100%; object-fit: contain; object-position: left center; }
+  .shop-name {
+    font-family: var(--serif); font-weight: 700; font-size: 21px;
+    letter-spacing: 0.22em; text-transform: uppercase; margin: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    color: var(--accent-deep);
+  }
+  .tagline {
+    font-size: 9.5px; letter-spacing: 0.32em; text-transform: uppercase;
+    color: var(--ink-soft); margin-top: 2px; white-space: nowrap; overflow: hidden;
+  }
+  .header-btn {
+    font-size: 14px; font-weight: 650; color: var(--accent-deep);
+    padding: 9px 14px; border-radius: 999px;
+    border: 1px solid var(--line-deep); background: var(--card);
+    min-height: 40px; flex: none;
+  }
+
+  main { padding: 6px 14px 0; max-width: 560px; margin: 0 auto; }
+
+  .menu-head {
+    display: flex; align-items: center; gap: 14px;
+    font-family: var(--serif); font-weight: 700; font-size: 16px;
+    letter-spacing: 0.24em; text-transform: uppercase; text-align: center;
+    color: var(--ink); margin: 24px 4px 10px;
+  }
+  .menu-head::before, .menu-head::after { content: ""; flex: 1; height: 1px; background: var(--line-deep); }
+  .menu-sub {
+    text-align: center; font-size: 12.5px; color: var(--ink-soft);
+    margin: -6px 12px 10px; font-style: italic; font-family: var(--serif);
+  }
+
+  .card {
+    background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
+    margin-bottom: 14px; overflow: hidden;
+  }
+
+  /* ---------- Accordion sections ---------- */
+  .sec { margin-bottom: 12px; scroll-margin-top: 86px; }
+  .sec-head {
+    display: flex; align-items: center; width: 100%; text-align: left; gap: 12px;
+    background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 14px 16px; min-height: 64px;
+  }
+  .sec.open .sec-head { border-radius: var(--radius) var(--radius) 0 0; }
+  .sec-titles { flex: 1; min-width: 0; }
+  .sec-num {
+    width: 26px; height: 26px; border-radius: 50%; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--serif); font-weight: 700; font-size: 14px;
+    color: var(--ink-soft); border: 1.5px solid var(--line-deep);
+  }
+  .sec-num.done { background: var(--accent); border-color: var(--accent); color: #fff; font-size: 13px; }
+  .sec-title {
+    font-family: var(--serif); font-weight: 700; font-size: 17px;
+    letter-spacing: 0.16em; text-transform: uppercase;
+  }
+  .sec-status { font-size: 13px; color: var(--ink-soft); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sec-status.picked { color: var(--accent-deep); font-weight: 600; }
+  .sec-chev { color: var(--ink-soft); font-size: 13px; transition: transform 0.2s ease; flex: none; }
+  .sec.open .sec-chev { transform: rotate(180deg); }
+  .sec-body {
+    background: var(--card); border-radius: 0 0 var(--radius) var(--radius);
+    box-shadow: var(--shadow); border-top: 1px solid var(--line);
+  }
+  .includes-banner {
+    font-size: 12.5px; color: var(--ink-soft); font-style: italic; font-family: var(--serif);
+    padding: 10px 16px; border-bottom: 1px solid var(--line); line-height: 1.5;
+  }
+  .includes-banner b { color: var(--accent-deep); font-style: normal; }
+
+  /* ---------- Item rows ---------- */
+  .item-row {
+    display: flex; align-items: center; padding: 10px 12px; gap: 12px;
+    border-top: 1px solid var(--line); min-height: 64px;
+  }
+  .item-row:first-child, .includes-banner + .item-row { border-top: none; }
+  .item-row.active { background: var(--card-deep); }
+  .thumb {
+    width: 46px; height: 46px; border-radius: 50%; flex: none; overflow: hidden;
+    background: var(--accent-soft); border: 1px solid var(--line-deep);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .pick-row .thumb { width: 64px; height: 64px; border-radius: 14px; }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .thumb .mono {
+    font-family: var(--serif); font-weight: 700; font-size: 15px;
+    letter-spacing: 0.05em; color: var(--accent-deep);
+  }
+  .item-info { flex: 1; min-width: 0; }
+  .item-name { font-size: 16px; line-height: 1.25; }
+  .item-row.active .item-name { font-weight: 650; }
+  .item-price { font-size: 13px; color: var(--accent-deep); font-weight: 650; margin-top: 2px; }
+  .item-price button { color: inherit; font: inherit; text-decoration: underline; text-underline-offset: 2px; }
+  .item-note { font-size: 12px; color: var(--ink-soft); margin-top: 1px; font-style: italic; }
+  .stepper { display: flex; align-items: center; gap: 2px; flex: none; }
+  .step-btn {
+    width: 42px; height: 42px; border-radius: 50%;
+    background: var(--card); border: 1px solid var(--line-deep);
+    color: var(--accent-deep); font-size: 21px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform 0.08s ease;
+  }
+  .step-btn:active { background: var(--accent-soft); transform: scale(0.92); }
+  .step-btn[disabled] { opacity: 0.3; }
+  .qty { width: 32px; text-align: center; font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .qty.zero { color: var(--line-deep); font-weight: 500; }
+  .pick-check {
+    width: 26px; height: 26px; border-radius: 50%; flex: none;
+    border: 2px solid var(--line-deep); display: flex; align-items: center; justify-content: center;
+    color: transparent; font-size: 14px; font-weight: 800;
+  }
+  .pick-row.active .pick-check { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .pick-price { font-family: var(--serif); font-weight: 700; font-size: 17px; color: var(--accent-deep); flex: none; }
+  .next-btn {
+    display: block; width: 100%; text-align: center; padding: 13px;
+    color: var(--accent-deep); font-weight: 700; font-size: 15px;
+    border-top: 1px solid var(--line); min-height: 50px; letter-spacing: 0.06em;
+  }
+
+  /* ---------- Discount card ---------- */
+  .discount-card { padding: 12px 14px; scroll-margin-top: 86px; }
+  .discount-row { display: flex; gap: 8px; }
+  .discount-row input {
+    flex: 1; border: 1px solid var(--line-deep); border-radius: 12px; padding: 10px 14px;
+    background: #FDFBF6; font-size: 16px; min-height: 48px; text-transform: uppercase;
+  }
+  .apply-btn {
+    background: var(--ink); color: var(--card); font-weight: 700; padding: 0 20px;
+    border-radius: 12px; min-height: 48px; flex: none;
+  }
+  .applied-row { display: flex; align-items: center; gap: 10px; }
+  .applied-code {
+    background: var(--good); color: #fff; font-weight: 700; letter-spacing: 0.06em;
+    padding: 6px 12px; border-radius: 999px; font-size: 14px;
+  }
+  .applied-amt { flex: 1; font-weight: 700; color: var(--good); font-size: 16px; }
+  .applied-remove { color: var(--danger); font-weight: 700; padding: 8px; }
+
+  /* ---------- Total bar ---------- */
+  .total-bar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+    background: var(--card); border-top: 1px solid var(--line-deep);
+    box-shadow: 0 -6px 20px rgba(36, 27, 18, 0.16);
+    padding: 10px 14px calc(12px + env(safe-area-inset-bottom));
+    max-width: 560px; margin: 0 auto;
+  }
+  @media (min-width: 560px) { .total-bar { border-radius: 18px 18px 0 0; } }
+  .receipt { max-height: 0; overflow: hidden; transition: max-height 0.25s ease; }
+  .total-bar.open .receipt { max-height: 45vh; max-height: 45dvh; overflow-y: auto; }
+  .receipt-inner { padding: 4px 2px 10px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+  .receipt-line { display: flex; justify-content: space-between; padding: 4px 0; font-size: 15px; gap: 12px; }
+  button.receipt-line { width: 100%; text-align: left; border-radius: 8px; }
+  button.receipt-line:active { background: var(--card-deep); }
+  .receipt-line .r-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .receipt-line .r-price { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .receipt-line.r-discount .r-name, .receipt-line.r-discount .r-price { color: var(--good); font-weight: 700; }
+  .receipt-foot { font-size: 12px; color: var(--ink-soft); padding-top: 7px; line-height: 1.5; font-style: italic; }
+  .total-main { display: flex; align-items: center; gap: 8px; }
+  .total-label-wrap { flex: 1; text-align: left; min-width: 0; }
+  .total-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: var(--ink-soft); display: flex; align-items: center; gap: 6px; }
+  .chevron { display: inline-block; transition: transform 0.2s ease; font-size: 10px; }
+  .total-bar.open .chevron { transform: rotate(180deg); }
+  .total-amount { font-family: var(--serif); font-size: 29px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; transform-origin: left center; }
+  @keyframes total-bump {
+    0% { transform: scale(1.07); color: var(--accent-deep); }
+    100% { transform: scale(1); }
+  }
+  .total-amount.bump { animation: total-bump 0.35s ease; }
+  @media (prefers-reduced-motion: reduce) { .total-amount.bump { animation: none; } }
+  .new-hat-btn {
+    border: 1.5px solid var(--line-deep); color: var(--ink-soft); font-weight: 650; font-size: 13.5px;
+    padding: 12px 13px; border-radius: 13px; flex: none; min-height: 48px;
+  }
+  .charge-btn {
+    background: var(--accent); color: #fff; font-weight: 700; font-size: 16px;
+    padding: 13px 20px; border-radius: 13px; flex: none; min-height: 48px;
+    letter-spacing: 0.02em;
+  }
+  .charge-btn:active { background: var(--accent-deep); }
+  .charge-btn.dim { opacity: 0.45; }
+
+  /* ---------- Toast ---------- */
+  .toast {
+    position: fixed; left: 50%; transform: translateX(-50%);
+    bottom: calc(130px + env(safe-area-inset-bottom));
+    background: var(--ink); color: #F6F1E7; border-radius: 12px;
+    padding: 11px 16px; font-size: 15px; display: flex; gap: 16px; align-items: center;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3); z-index: 60;
+    opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
+    max-width: 92vw;
+  }
+  .toast.show { opacity: 1; pointer-events: auto; }
+  .toast button { color: #E8B77D; font-weight: 700; flex: none; }
+
+  /* ---------- Modal ---------- */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(36, 27, 18, 0.45); z-index: 50;
+    display: flex; align-items: flex-start; justify-content: center;
+    /* sit high so the iOS keyboard never covers the sheet's input */
+    padding: calc(11vh + env(safe-area-inset-top)) 24px 24px;
+  }
+  .sheet {
+    background: var(--card); border-radius: 18px; padding: 20px;
+    width: 100%; max-width: 360px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+  }
+  .sheet h3 { font-family: var(--serif); margin: 0 0 4px; font-size: 19px; letter-spacing: 0.02em; }
+  .sheet .sheet-sub { font-size: 13.5px; color: var(--ink-soft); margin-bottom: 14px; line-height: 1.5; }
+  .price-entry { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+  .price-entry .cur { font-family: var(--serif); font-size: 24px; font-weight: 700; color: var(--accent-deep); }
+  .price-entry input {
+    flex: 1; font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums;
+    border: 1.5px solid var(--line-deep); border-radius: 12px; padding: 8px 14px;
+    background: #FDFBF6; width: 100%; min-height: 54px;
+  }
+  .sheet-btns { display: flex; gap: 10px; }
+  .sheet-btn { flex: 1; padding: 13px; border-radius: 12px; font-weight: 700; font-size: 16px; min-height: 50px; }
+  .sheet-btn.primary { background: var(--accent); color: #fff; }
+  .sheet-btn.ghost { border: 1.5px solid var(--line-deep); color: var(--ink-soft); }
+
+  /* ---------- Edit view ---------- */
+  .edit-card { padding: 12px 14px; }
+  .edit-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .edit-row:last-child { margin-bottom: 0; }
+  .opt-edit { border-top: 1px solid var(--line); padding-top: 10px; margin-top: 10px; }
+  .opt-edit.first { border-top: none; margin-top: 0; padding-top: 0; }
+  .opt-edit .edit-row { margin-bottom: 0; }
+  .edit-subrow { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+  .price-lbl { font-size: 13px; color: var(--ink-soft); font-weight: 600; white-space: nowrap; }
+  .spacer { flex: 1; }
+  .text-input, .price-input {
+    border: 1px solid var(--line-deep); border-radius: 10px; padding: 10px 12px;
+    background: #FDFBF6; font-size: 16px; min-height: 44px; width: 100%;
+  }
+  .text-input:focus, .price-input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .price-input { width: 82px; flex: none; text-align: right; font-variant-numeric: tabular-nums; }
+  .group-name-input { font-weight: 700; }
+  .icon-btn {
+    width: 40px; height: 44px; flex: none; display: flex; align-items: center; justify-content: center;
+    border-radius: 10px; color: var(--ink-soft); font-size: 17px;
+  }
+  .icon-btn:active { background: var(--accent-soft); }
+  .icon-btn.danger { color: var(--danger); }
+  .var-toggle, .type-toggle, .dtype-toggle {
+    flex: none; font-weight: 700; min-height: 44px;
+    border-radius: 10px; border: 1.5px solid var(--line-deep); color: var(--ink-soft); background: var(--card);
+  }
+  .var-toggle { font-size: 15px; font-weight: 800; min-width: 44px; }
+  .var-toggle.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .type-toggle { font-size: 12px; padding: 0 12px; letter-spacing: 0.03em; }
+  .type-toggle.single { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .dtype-toggle { font-size: 16px; min-width: 44px; }
+  .thumb-edit { position: relative; flex: none; }
+  .thumb-edit .thumb { width: 44px; height: 44px; }
+  .thumb-clear {
+    position: absolute; top: -6px; right: -6px; width: 20px; height: 20px;
+    border-radius: 50%; background: var(--danger); color: #fff; font-size: 11px;
+    display: flex; align-items: center; justify-content: center; font-weight: 700;
+  }
+  .inc-qty-input { width: 62px; flex: none; text-align: center; }
+  .add-btn {
+    display: block; width: 100%; text-align: center; padding: 12px;
+    color: var(--accent-deep); font-weight: 700; font-size: 15px;
+    border-top: 1px solid var(--line); min-height: 48px;
+  }
+  .add-section-btn {
+    display: block; width: 100%; text-align: center; padding: 14px;
+    background: var(--accent-soft); color: var(--accent-deep); font-weight: 700;
+    border-radius: var(--radius); margin-bottom: 14px; min-height: 50px;
+    border: 1px solid var(--line-deep);
+  }
+  .import-btn {
+    display: block; width: 100%; text-align: center; padding: 13px;
+    background: var(--ink); color: var(--card); font-weight: 700;
+    border-radius: 12px; min-height: 50px; margin-top: 10px;
+  }
+  .danger-zone { text-align: center; margin: 26px 0 10px; }
+  .danger-zone button { color: var(--danger); font-weight: 600; font-size: 14px; padding: 10px; }
+  .edit-hint { font-size: 13px; color: var(--ink-soft); margin: 10px 6px 14px; line-height: 1.5; }
+  .edit-hint b { color: var(--ink); }
+  .field-label { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft); margin: 10px 2px 5px; }
+  .field-label:first-child { margin-top: 0; }
+  .logo-edit-row { display: flex; align-items: center; gap: 12px; }
+  .logo-edit-btn {
+    flex: 1; min-height: 60px; border: 1.5px dashed var(--line-deep); border-radius: 12px;
+    display: flex; align-items: center; justify-content: center; color: var(--ink-soft);
+    font-size: 14px; font-weight: 600; padding: 8px; overflow: hidden;
+  }
+  .logo-edit-btn img { max-height: 44px; max-width: 100%; object-fit: contain; }
+</style>
+</head>
+<body>
+<header>
+  <div class="masthead" id="masthead"></div>
+  <button class="header-btn" id="mode-btn">Edit Menu</button>
+</header>
+
+<main id="main"></main>
+
+<div class="total-bar" id="total-bar" hidden>
+  <div class="receipt" id="receipt"></div>
+  <div class="total-main">
+    <button class="total-label-wrap" id="receipt-toggle" aria-label="Show itemized list">
+      <div class="total-label"><span id="item-count">Choose a hat</span> <span class="chevron">▲</span></div>
+      <div class="total-amount" id="total-amount">$0</div>
+    </button>
+    <button class="new-hat-btn" id="new-hat-btn">New<br>Hat</button>
+    <button class="charge-btn" id="charge-btn">Charge</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="toast-msg"></span><button id="toast-undo" hidden>Undo</button></div>
+<div id="modal-root"></div>
+<input type="file" accept="image/*" id="photo-input" hidden>
+
+<script>
+"use strict";
+
+/* ================= Storage & default catalog ================= */
+
+const CATALOG_KEY = "hatbar-catalog-v3";
+const TALLY_KEY = "hatbar-tally-v3";
+
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2));
+
+// Sections are either type "single" (tap one — the hat itself) or "multi"
+// (mix & match with quantity steppers). Prices are charged in full; the
+// included allowance is free and informational — totals only ever go up.
+// "variable" marks "$N+" pricing: the exact amount is entered at the register.
+function defaultCatalog() {
+  const item = (name, price, extra) => Object.assign({ id: uid(), name, price, variable: false, note: "", photo: null }, extra || {});
+  return {
+    shopName: "Details Austin",
+    tagline: "Custom Hat Experience",
+    logo: "logo.svg",
+    squareAppId: "",
+    includes: [
+      { id: uid(), name: "Signature Bands", qty: 3 },
+      { id: uid(), name: "Feathers (Signature or Pompas)", qty: 3 },
+      { id: uid(), name: "Small Pin", qty: 1 },
+      { id: uid(), name: "Burnt-In Brand", qty: 1 },
+    ],
+    discounts: [],
+    sections: [
+      {
+        id: uid(), name: "Hats", sub: "Tap to choose the hat", type: "single",
+        items: [item("Classic Collection Hat", 185), item("AHM Collection Hat", 225)],
+      },
+      {
+        id: uid(), name: "Hat Upgrades", sub: "", type: "multi",
+        items: [item("Premium Hat Upgrade", 40, { variable: true, note: "Select premium styles & expanded sizes" })],
+      },
+      {
+        id: uid(), name: "Bands", sub: "", type: "multi",
+        items: [
+          item("Signature Band", 3), item("Vegan Leather Band", 8), item("Leather Cord", 8),
+          item("Barbed Wire", 8), item("Leather Band", 12), item("Scarf", 15),
+          item("Luxe Band", 15, { variable: true }),
+        ],
+      },
+      {
+        id: uid(), name: "Feathers", sub: "", type: "multi",
+        items: [item("Signature Feather", 2), item("Pompas Grass", 2), item("Luxe Feather", 6)],
+      },
+      {
+        id: uid(), name: "Details", sub: "", type: "multi",
+        items: [
+          item("Playing Cards", 2), item("Custom Brand", 2), item("Small Pin", 3),
+          item("Large Pin", 5), item("Agate Beads", 5), item("Chain", 5, { variable: true }),
+          item("Bullet Pin", 8), item("Bullet Feather Holder", 12),
+        ],
+      },
+    ],
+  };
+}
+
+function loadJSON(key) {
+  try { return JSON.parse(localStorage.getItem(key)); } catch (e) { return null; }
+}
+function save(key, value) {
+  if (key === TALLY_KEY && !$("#toast-undo").hidden) {
+    // The tally moved on — retire a stale Undo so it can't revert newer work.
+    $("#toast").classList.remove("show");
+    $("#toast-undo").hidden = true;
+  }
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (e) {
+    // Storage full or blocked: keep going in memory so the screen and the bill
+    // never diverge, and tell the owner the tally won't survive a relaunch.
+    setTimeout(() => showToast("Couldn't save — storage is full; this tally won't survive closing the app"), 0);
+  }
+}
+
+let catalog = loadJSON(CATALOG_KEY);
+if (!catalog || !Array.isArray(catalog.sections)) {
+  catalog = defaultCatalog();
+  save(CATALOG_KEY, catalog);
+}
+if (!Array.isArray(catalog.discounts)) catalog.discounts = [];
+
+// tally: selections per single-section {sectionId: {itemId, price}},
+// items per multi-section item {itemId: {qty, price}}, discountCode string.
+let tally = loadJSON(TALLY_KEY);
+if (!tally || !tally.items || !tally.selections) tally = { selections: {}, items: {}, discountCode: "" };
+
+let mode = "tally";
+let expandedId = (catalog.sections[0] || {}).id || null;
+let receiptOpen = false;
+let undoTally = null;
+let toastTimer = null;
+let photoTarget = null; // {kind: "item"|"logo", id}
+let scrollTargetId = null;
+
+const $ = (sel) => document.querySelector(sel);
+const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+function fmt(n) {
+  const v = Math.round(n * 100) / 100;
+  return Number.isInteger(v)
+    ? "$" + v.toLocaleString("en-US")
+    : "$" + v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function allItems() { return catalog.sections.flatMap((s) => s.items); }
+function findItem(id) { return allItems().find((i) => i.id === id) || null; }
+function monogram(name) {
+  const words = String(name).trim().split(/\s+/).filter(Boolean);
+  return (words.length >= 2 ? words[0][0] + words[1][0] : (words[0] || "?").slice(0, 2)).toUpperCase();
+}
+function includesSummary() {
+  return catalog.includes.map((inc) => (inc.qty > 1 ? inc.qty + "× " : "") + inc.name).join(", ");
+}
+function findDiscount(code) {
+  const norm = String(code || "").trim().toUpperCase();
+  if (!norm) return null;
+  return catalog.discounts.find((d) => String(d.code).trim().toUpperCase() === norm) || null;
+}
+
+/* ================= Bill math ================= */
+
+// "$N+" (variable) items keep one price PER UNIT — two luxe bands can cost
+// $22 and $35. Older saved tallies only had {qty, price}; fall back to that.
+function unitPrices(entry) {
+  if (Array.isArray(entry.prices)) return entry.prices.map((p) => Number(p) || 0);
+  return Array(entry.qty || 0).fill(Number(entry.price) || 0);
+}
+function entrySum(entry) { return unitPrices(entry).reduce((sum, p) => sum + p, 0); }
+
+function computeBill() {
+  const lines = [];
+  for (const section of catalog.sections) {
+    if (section.type !== "single") continue;
+    const sel = tally.selections[section.id];
+    if (!sel) continue;
+    const item = section.items.find((i) => i.id === sel.itemId);
+    if (item) lines.push({ name: item.name, price: Number(sel.price) || 0, sid: section.id });
+  }
+  for (const section of catalog.sections) {
+    if (section.type === "single") continue;
+    for (const item of section.items) {
+      const entry = tally.items[item.id];
+      if (entry && entry.qty > 0) {
+        lines.push({ name: item.name + (entry.qty > 1 ? " ×" + entry.qty : ""), price: entrySum(entry), sid: section.id });
+      }
+    }
+  }
+  const subtotal = lines.reduce((sum, l) => sum + l.price, 0);
+  let discount = null;
+  const d = findDiscount(tally.discountCode);
+  if (d && subtotal > 0) {
+    const raw = d.type === "percent" ? (subtotal * (Number(d.value) || 0)) / 100 : Number(d.value) || 0;
+    const amount = Math.min(subtotal, Math.round(raw * 100) / 100);
+    if (amount > 0) discount = { code: String(d.code).trim().toUpperCase(), amount };
+  }
+  return { lines, subtotal, discount, total: Math.max(0, subtotal - (discount ? discount.amount : 0)) };
+}
+
+function enhancementCount() {
+  return Object.values(tally.items).reduce((n, e) => n + (e.qty || 0), 0);
+}
+function hatChosen() {
+  return catalog.sections.some((s) => s.type === "single" && tally.selections[s.id]);
+}
+
+/* ================= Tally view ================= */
+
+function thumbHTML(item) {
+  return '<span class="thumb">' +
+    (item.photo ? '<img src="' + item.photo + '" alt="" loading="lazy">' : '<span class="mono">' + esc(monogram(item.name)) + "</span>") +
+    "</span>";
+}
+
+function sectionStatus(section) {
+  if (section.type === "single") {
+    const sel = tally.selections[section.id];
+    if (!sel) return { text: "Tap to choose", picked: false };
+    const item = section.items.find((i) => i.id === sel.itemId);
+    return item ? { text: item.name + " · " + fmt(sel.price), picked: true } : { text: "Tap to choose", picked: false };
+  }
+  const parts = [];
+  let sum = 0;
+  for (const item of section.items) {
+    const entry = tally.items[item.id];
+    if (entry && entry.qty > 0) {
+      parts.push(item.name + (entry.qty > 1 ? " ×" + entry.qty : ""));
+      sum += entrySum(entry);
+    }
+  }
+  return parts.length
+    ? { text: parts.join(", ") + " · +" + fmt(sum), picked: true }
+    : { text: "Mix & match", picked: false };
+}
+
+function renderTally() {
+  const main = $("#main");
+  let html = "";
+
+  let stepNo = 0;
+  catalog.sections.forEach((section, si) => {
+    if (!section.items.length) return;
+    stepNo++;
+    const open = expandedId === section.id;
+    const status = sectionStatus(section);
+    html += '<section class="sec' + (open ? " open" : "") + '" id="sec-' + section.id + '">' +
+      '<button class="sec-head" data-toggle="' + section.id + '" aria-expanded="' + open + '">' +
+      '<span class="sec-num' + (status.picked ? " done" : "") + '">' + (status.picked ? "✓" : stepNo) + "</span>" +
+      '<div class="sec-titles"><div class="sec-title">' + esc(section.name) + "</div>" +
+      '<div class="sec-status' + (status.picked ? " picked" : "") + '">' + esc(status.text) + "</div></div>" +
+      '<span class="sec-chev">▼</span></button>';
+    if (open) {
+      html += '<div class="sec-body">';
+      if (section.type === "single" && catalog.includes.length) {
+        html += '<div class="includes-banner">Every hat includes <b>' + esc(includesSummary()) + "</b> — swaps &amp; extras below are list price, never deducted.</div>";
+      }
+      for (const item of section.items) {
+        if (section.type === "single") {
+          const sel = tally.selections[section.id];
+          const isSel = sel && sel.itemId === item.id;
+          html += '<button class="item-row pick-row' + (isSel ? " active" : "") + '" data-pick="' + section.id + ":" + item.id + '">' +
+            thumbHTML(item) +
+            '<div class="item-info"><div class="item-name">' + esc(item.name) + "</div>" +
+            (item.note ? '<div class="item-note">' + esc(item.note) + "</div>" : "") +
+            "</div>" +
+            '<span class="pick-price">' + fmt(Number(item.price) || 0) + (item.variable ? "+" : "") + "</span>" +
+            '<span class="pick-check">✓</span>' +
+            "</button>";
+        } else {
+          const entry = tally.items[item.id];
+          const qty = entry ? entry.qty : 0;
+          let priceHtml;
+          if (qty > 0) {
+            if (item.variable) {
+              // One tappable price per unit — adjust any piece without touching the others.
+              priceHtml = unitPrices(entry).map((p, ui) =>
+                '<button data-editprice="' + item.id + '" data-unit="' + ui + '" aria-label="Adjust ' + esc(item.name) + ' price ' + (ui + 1) + '">' + fmt(p) + "</button>"
+              ).join(" + ") + " · adjust";
+            } else {
+              priceHtml = fmt(entry.price) + " each";
+            }
+          } else {
+            priceHtml = fmt(Number(item.price) || 0) + (item.variable ? "+" : "");
+          }
+          html += '<div class="item-row' + (qty > 0 ? " active" : "") + '">' +
+            thumbHTML(item) +
+            '<div class="item-info"><div class="item-name">' + esc(item.name) + "</div>" +
+            '<div class="item-price">' + priceHtml + "</div>" +
+            (item.note ? '<div class="item-note">' + esc(item.note) + "</div>" : "") +
+            "</div>" +
+            '<div class="stepper">' +
+            '<button class="step-btn" data-dec="' + item.id + '"' + (qty === 0 ? " disabled" : "") + ' aria-label="Remove one ' + esc(item.name) + '">−</button>' +
+            '<span class="qty' + (qty === 0 ? " zero" : "") + '" aria-label="' + qty + ' in tally">' + qty + "</span>" +
+            '<button class="step-btn" data-inc="' + item.id + '" aria-label="Add ' + esc(item.name) + '">+</button>' +
+            "</div></div>";
+        }
+      }
+      if (section.type !== "single") {
+        const nextSec = catalog.sections.slice(si + 1).find((s) => s.items.length);
+        html += '<button class="next-btn" data-next="' + si + '">' +
+          (nextSec ? "Next: " + esc(nextSec.name) + " ↓" : "Done — review &amp; charge ↓") + "</button>";
+      }
+      html += "</div>";
+    }
+    html += "</section>";
+  });
+
+  html += '<h2 class="menu-head">Discount</h2><div class="card discount-card" id="discount-card">';
+  const bill = computeBill();
+  if (bill.discount) {
+    html += '<div class="applied-row"><span class="applied-code">' + esc(bill.discount.code) + "</span>" +
+      '<span class="applied-amt">−' + fmt(bill.discount.amount) + " off</span>" +
+      '<button class="applied-remove" id="discount-remove">Remove</button></div>';
+  } else {
+    html += '<div class="discount-row"><input id="discount-input" placeholder="Discount code" autocapitalize="characters" autocorrect="off" enterkeyhint="go">' +
+      '<button class="apply-btn" id="discount-apply">Apply</button></div>';
+  }
+  html += "</div>";
+
+  main.innerHTML = html;
+
+  main.querySelectorAll("[data-toggle]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      expandedId = expandedId === btn.dataset.toggle ? null : btn.dataset.toggle;
+      if (expandedId) scrollTargetId = "sec-" + expandedId;
+      renderTally();
+    });
+  });
+  main.querySelectorAll("[data-pick]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const [sid, iid] = btn.dataset.pick.split(":");
+      const section = catalog.sections.find((s) => s.id === sid);
+      const item = section && section.items.find((i) => i.id === iid);
+      if (!section || !item) return;
+      const sel = tally.selections[sid];
+      if (sel && sel.itemId === iid) {
+        delete tally.selections[sid];
+        save(TALLY_KEY, tally);
+        renderTally();
+      } else if (item.variable) {
+        openPriceSheet(item, Number(item.price) || 0, (price) => {
+          tally.selections[sid] = { itemId: iid, price };
+          save(TALLY_KEY, tally);
+          advanceFrom(sid);
+        }, "Select");
+      } else {
+        tally.selections[sid] = { itemId: iid, price: Number(item.price) || 0 };
+        save(TALLY_KEY, tally);
+        advanceFrom(sid);
+      }
+    });
+  });
+  main.querySelectorAll("[data-inc]").forEach((btn) => {
+    btn.addEventListener("click", () => incrementItem(btn.dataset.inc));
+  });
+  main.querySelectorAll("[data-dec]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const entry = tally.items[btn.dataset.dec];
+      if (!entry) return;
+      entry.qty -= 1;
+      if (Array.isArray(entry.prices)) {
+        entry.prices.pop(); // "−" removes the most recently added unit
+        if (entry.prices.length) entry.price = entry.prices[0];
+      }
+      if (entry.qty <= 0) delete tally.items[btn.dataset.dec];
+      save(TALLY_KEY, tally);
+      renderTally();
+    });
+  });
+  main.querySelectorAll("[data-editprice]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const item = findItem(btn.dataset.editprice);
+      if (!item) return;
+      const entry = tally.items[item.id];
+      if (!entry) return;
+      const prices = unitPrices(entry);
+      const ui = Math.min(parseInt(btn.dataset.unit, 10) || 0, prices.length - 1);
+      openPriceSheet(item, prices[ui], (price) => {
+        prices[ui] = price; // reprice this unit only
+        entry.prices = prices;
+        entry.price = prices[0];
+        save(TALLY_KEY, tally);
+        renderTally();
+      }, "Save");
+    });
+  });
+  main.querySelectorAll("[data-next]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const idx = parseInt(btn.dataset.next, 10);
+      const next = catalog.sections.slice(idx + 1).find((s) => s.items.length);
+      expandedId = next ? next.id : null;
+      scrollTargetId = next ? "sec-" + next.id : "discount-card";
+      renderTally();
+    });
+  });
+
+  const applyBtn = $("#discount-apply");
+  if (applyBtn) {
+    const applyCode = () => {
+      const code = $("#discount-input").value;
+      if (!String(code).trim()) return;
+      if (findDiscount(code)) {
+        tally.discountCode = String(code).trim().toUpperCase();
+        save(TALLY_KEY, tally);
+        renderTally();
+      } else {
+        showToast("Code not found");
+      }
+    };
+    applyBtn.addEventListener("click", applyCode);
+    $("#discount-input").addEventListener("keydown", (e) => { if (e.key === "Enter") applyCode(); });
+  }
+  const removeBtn = $("#discount-remove");
+  if (removeBtn) {
+    removeBtn.addEventListener("click", () => {
+      tally.discountCode = "";
+      save(TALLY_KEY, tally);
+      renderTally();
+    });
+  }
+
+  renderTotalBar();
+
+  if (scrollTargetId) {
+    const el = document.getElementById(scrollTargetId);
+    scrollTargetId = null;
+    if (el) requestAnimationFrame(() => el.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }
+}
+
+function advanceFrom(sectionId) {
+  const idx = catalog.sections.findIndex((s) => s.id === sectionId);
+  const next = catalog.sections.slice(idx + 1).find((s) => s.items.length);
+  expandedId = next ? next.id : null;
+  scrollTargetId = next ? "sec-" + next.id : "discount-card";
+  renderTally();
+}
+
+function incrementItem(id) {
+  const item = findItem(id);
+  if (!item) return;
+  const entry = tally.items[id];
+  if (item.variable) {
+    // Every "$N+" unit gets its own price — ask on every add, never assume
+    // the last piece's price.
+    const prices = entry ? unitPrices(entry) : [];
+    openPriceSheet(item, prices.length ? prices[prices.length - 1] : Number(item.price) || 0, (price) => {
+      prices.push(price);
+      tally.items[id] = { qty: prices.length, price: prices[0], prices };
+      save(TALLY_KEY, tally);
+      renderTally();
+    });
+  } else if (entry) {
+    entry.qty += 1;
+    save(TALLY_KEY, tally);
+    renderTally();
+  } else {
+    tally.items[id] = { qty: 1, price: Number(item.price) || 0 };
+    save(TALLY_KEY, tally);
+    renderTally();
+  }
+}
+
+function renderTotalBar() {
+  const bar = $("#total-bar");
+  bar.hidden = mode !== "tally";
+  if (bar.hidden) return;
+
+  const bill = computeBill();
+  const amtEl = $("#total-amount");
+  const amtText = fmt(bill.total);
+  if (amtEl.textContent !== amtText) {
+    amtEl.textContent = amtText;
+    amtEl.classList.remove("bump");
+    void amtEl.offsetWidth; // restart the animation
+    amtEl.classList.add("bump");
+  }
+  $("#charge-btn").classList.toggle("dim", bill.total <= 0);
+
+  const count = enhancementCount();
+  const hasSingles = catalog.sections.some((s) => s.type === "single" && s.items.length);
+  $("#item-count").textContent = hasSingles && !hatChosen()
+    ? "Choose a hat"
+    : count === 0 ? "No enhancements yet" : count + (count === 1 ? " enhancement" : " enhancements");
+
+  bar.classList.toggle("open", receiptOpen);
+  const toggle = $("#receipt-toggle");
+  toggle.setAttribute("aria-expanded", String(receiptOpen));
+  toggle.setAttribute("aria-label", receiptOpen ? "Hide itemized list" : "Show itemized list");
+  $("#receipt").innerHTML = receiptOpen
+    ? '<div class="receipt-inner">' +
+      (bill.lines.length
+        ? bill.lines.map((l) =>
+            '<button class="receipt-line" data-goto="' + l.sid + '"><span class="r-name">' + esc(l.name) + '</span><span class="r-price">' + fmt(l.price) + "</span></button>"
+          ).join("")
+        : '<div class="receipt-line"><span class="r-name" style="color:var(--ink-soft)">Nothing on this hat yet</span></div>') +
+      (bill.discount
+        ? '<div class="receipt-line r-discount"><span class="r-name">Discount (' + esc(bill.discount.code) + ')</span><span class="r-price">−' + fmt(bill.discount.amount) + "</span></div>"
+        : "") +
+      (catalog.includes.length && hatChosen()
+        ? '<div class="receipt-foot">Hat includes ' + esc(includesSummary()) + ". Swaps &amp; extras are list price — never any deductions.</div>"
+        : "") +
+      "</div>"
+    : "";
+
+  // Tap a receipt line to jump back to its section for a one-tap correction.
+  $("#receipt").querySelectorAll("[data-goto]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      receiptOpen = false;
+      expandedId = btn.dataset.goto;
+      scrollTargetId = "sec-" + expandedId;
+      renderTally();
+    });
+  });
+}
+
+/* ================= New hat / toast ================= */
+
+function newHat(silent) {
+  undoTally = tally;
+  tally = { selections: {}, items: {}, discountCode: "" };
+  save(TALLY_KEY, tally);
+  receiptOpen = false;
+  expandedId = (catalog.sections[0] || {}).id || null;
+  window.scrollTo(0, 0);
+  renderTally();
+  if (!silent) showToast("Cleared for the next hat", true);
+}
+
+function showToast(msg, withUndo) {
+  $("#toast-msg").textContent = msg;
+  $("#toast-undo").hidden = !withUndo;
+  $("#toast").classList.add("show");
+  clearTimeout(toastTimer);
+  // Undo stays available much longer (a mis-tapped New Hat costs a whole
+  // rebuild); any tally change dismisses it early — see save().
+  toastTimer = setTimeout(() => $("#toast").classList.remove("show"), withUndo ? 15000 : 4500);
+}
+
+$("#toast-undo").addEventListener("click", () => {
+  if (undoTally) {
+    tally = undoTally;
+    undoTally = null;
+    save(TALLY_KEY, tally);
+    renderTally();
+  }
+  $("#toast").classList.remove("show");
+});
+
+/* ================= Modals ================= */
+
+function closeModal() {
+  $("#modal-root").innerHTML = "";
+  document.removeEventListener("keydown", modalKeydown);
+}
+
+// Escape dismisses any sheet; Tab cycles inside it (minimal focus trap).
+function modalKeydown(e) {
+  if (e.key === "Escape") { closeModal(); return; }
+  if (e.key !== "Tab") return;
+  const focusables = $("#modal-root").querySelectorAll("button, input");
+  if (!focusables.length) return;
+  const first = focusables[0], last = focusables[focusables.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+}
+
+function openModal(html) {
+  $("#modal-root").innerHTML = html;
+  document.addEventListener("keydown", modalKeydown);
+}
+
+function openPriceSheet(item, startPrice, onSave, actionLabel) {
+  openModal(
+    '<div class="overlay" id="overlay"><div class="sheet" role="dialog" aria-modal="true" aria-label="Price for ' + esc(item.name) + '">' +
+    "<h3>" + esc(item.name) + "</h3>" +
+    '<div class="sheet-sub">Priced from ' + fmt(Number(item.price) || 0) + " — enter the price for this hat.</div>" +
+    '<div class="price-entry"><span class="cur">$</span>' +
+    '<input id="sheet-price" inputmode="decimal" enterkeyhint="done" value="' + (Number(startPrice) || 0) + '"></div>' +
+    '<div class="sheet-btns">' +
+    '<button class="sheet-btn ghost" id="sheet-cancel">Cancel</button>' +
+    '<button class="sheet-btn primary" id="sheet-save">' + esc(actionLabel || "Add") + "</button>" +
+    "</div></div></div>"
+  );
+  const input = $("#sheet-price");
+  input.focus();
+  input.select();
+  const commit = () => {
+    const n = parseFloat(normalizePriceText(input.value));
+    if (isNaN(n)) { input.focus(); input.select(); return; } // blank taps don't add $0 lines
+    onSave(n < 0 ? 0 : Math.round(n * 100) / 100);
+    closeModal();
+  };
+  $("#sheet-save").addEventListener("click", commit);
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter") commit(); });
+  $("#sheet-cancel").addEventListener("click", closeModal);
+  $("#overlay").addEventListener("click", (e) => { if (e.target.id === "overlay") closeModal(); });
+}
+
+function openSquareSetupSheet() {
+  openModal(
+    '<div class="overlay" id="overlay"><div class="sheet" role="dialog" aria-modal="true" aria-label="Connect Square">' +
+    "<h3>Connect Square</h3>" +
+    '<div class="sheet-sub">To take payment through Square, this app hands the total to the ' +
+    "<b>Square Point of Sale</b> app on this phone. One-time setup:<br><br>" +
+    "1. Install the Square POS app &amp; sign in to the business account.<br>" +
+    '2. Create a (free) application at <b>developer.squareup.com</b> and copy its <b>Application ID</b>.<br>' +
+    "3. Paste the ID in <b>Edit Menu → Square</b>.</div>" +
+    '<div class="sheet-btns">' +
+    '<button class="sheet-btn ghost" id="sheet-cancel">Close</button>' +
+    '<button class="sheet-btn primary" id="sheet-goto">Open Settings</button>' +
+    "</div></div></div>"
+  );
+  $("#sheet-cancel").addEventListener("click", closeModal);
+  $("#overlay").addEventListener("click", (e) => { if (e.target.id === "overlay") closeModal(); });
+  $("#sheet-goto").addEventListener("click", () => {
+    closeModal();
+    mode = "edit";
+    render();
+    const el = $("#square-app-id");
+    if (el) { el.scrollIntoView({ block: "center" }); el.focus(); }
+  });
+}
+
+/* ================= Square Point of Sale hand-off ================= */
+
+function buildSquareUrl(totalCents, note) {
+  const data = {
+    amount_money: { amount: totalCents, currency_code: "USD" },
+    callback_url: location.protocol.startsWith("http") ? location.origin + location.pathname : "https://squareup.com",
+    client_id: catalog.squareAppId,
+    version: "1.3",
+    notes: note,
+    options: {
+      supported_tender_types: ["CREDIT_CARD", "CASH", "OTHER", "SQUARE_GIFT_CARD", "CARD_ON_FILE"],
+      auto_return: true,
+    },
+  };
+  return "square-commerce-v1://payment/create?data=" + encodeURIComponent(JSON.stringify(data));
+}
+
+function charge() {
+  const bill = computeBill();
+  if (bill.total <= 0) {
+    // A 100% / big $-off code legitimately zeroes the bill — say so instead
+    // of the generic empty-tally message. $0 can't be sent to Square POS.
+    showToast(bill.discount
+      ? "Total is $0 after " + bill.discount.code + " — nothing to send to Square"
+      : "Nothing to charge yet");
+    return;
+  }
+  if (!catalog.squareAppId) { openSquareSetupSheet(); return; }
+  if (tally.pendingCharge) { openPendingChargeSheet(); return; } // no accidental double-launch
+  let note = bill.lines.map((l) => l.name + " " + fmt(l.price)).join(", ");
+  if (bill.discount) note += ", Discount " + bill.discount.code + " −" + fmt(bill.discount.amount);
+  // Remember the hand-off BEFORE app-switching: on iPhone the success callback
+  // opens in Safari (separate storage), so this app may never hear back —
+  // openPendingChargeSheet() asks the owner on return instead.
+  tally.pendingCharge = { total: bill.total, at: Date.now() };
+  save(TALLY_KEY, tally);
+  location.href = buildSquareUrl(Math.round(bill.total * 100), note.slice(0, 250));
+}
+
+// Asked when we come back from (or re-tap Charge after) a Square hand-off that
+// never confirmed. "Paid" clears for the next customer so the old tally can't
+// be re-charged or built on top of; "Not paid" keeps the tally chargeable.
+function openPendingChargeSheet() {
+  const pc = tally.pendingCharge;
+  if (!pc) return;
+  openModal(
+    '<div class="overlay" id="overlay"><div class="sheet" role="dialog" aria-modal="true" aria-label="Confirm payment">' +
+    "<h3>Did the " + fmt(Number(pc.total) || 0) + " payment finish?</h3>" +
+    '<div class="sheet-sub">This tally was handed to Square POS. If Square took the payment, clear it — charging again would bill the customer twice.</div>' +
+    '<div class="sheet-btns">' +
+    '<button class="sheet-btn ghost" id="pending-keep">Not paid — keep tally</button>' +
+    '<button class="sheet-btn primary" id="pending-paid">Paid — clear it</button>' +
+    "</div></div></div>"
+  );
+  $("#pending-paid").addEventListener("click", () => {
+    closeModal();
+    newHat(true);
+    showToast("Cleared — ready for the next hat");
+  });
+  $("#pending-keep").addEventListener("click", () => {
+    delete tally.pendingCharge;
+    save(TALLY_KEY, tally);
+    closeModal();
+  });
+}
+
+// Handle the return trip from Square POS (?data={...} on the callback URL).
+(function handleSquareCallback() {
+  const params = new URLSearchParams(location.search);
+  if (!params.has("data")) return;
+  let result = null;
+  try { result = JSON.parse(params.get("data")); } catch (e) { /* not Square's payload */ }
+  history.replaceState(null, "", location.pathname);
+  if (!result) return;
+  if (result.status === "ok") {
+    newHat(true); // also drops pendingCharge with the rest of the tally
+    showToast("Payment recorded in Square ✓");
+  } else {
+    delete tally.pendingCharge; // failed/canceled: tally stays chargeable
+    save(TALLY_KEY, tally);
+    showToast("Square: " + (result.error_code || "payment not completed"));
+  }
+})();
+
+/* ================= Square catalog import ================= */
+
+// Reads square-catalog.json, generated in the repo by the "Sync Square catalog"
+// GitHub Action (which holds the account's access token as a repo secret —
+// the token never reaches this page). Maps Square categories to sections:
+// HAT/HATS becomes the pick-one section, everything else mix & match.
+async function importSquareCatalog() {
+  let data;
+  try {
+    const res = await fetch("square-catalog.json", { cache: "reload" });
+    if (!res.ok) throw new Error(String(res.status));
+    data = await res.json();
+  } catch (e) {
+    showToast("No synced catalog found — run the Sync Square action first (see README)");
+    return;
+  }
+  if (!Array.isArray(data.items) || !data.items.length) {
+    showToast("Synced catalog is empty");
+    return;
+  }
+  if (!confirm("Replace the menu with " + data.items.length + " items from the Square catalog? Shop settings, includes, and discounts are kept.")) return;
+
+  const titleCase = (s) => String(s).toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+  const isHatCat = (c) => /^hats?$/i.test(String(c).trim());
+  const stripPrefix = (name, cat) => {
+    const re = new RegExp("^\\s*" + cat.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\s*:\\s*", "i");
+    return String(name).replace(re, "").trim();
+  };
+
+  const hatItems = [], upgradeItems = [], otherSections = new Map();
+  for (const raw of data.items) {
+    const cat = String(raw.category || "Other").trim();
+    const item = {
+      id: uid(),
+      name: stripPrefix(raw.name, cat),
+      price: Number(raw.price) || 0,
+      variable: Number(raw.priceMax) > Number(raw.price),
+      note: "",
+      photo: raw.photo || null,
+    };
+    if (isHatCat(cat)) {
+      if (/upgrade/i.test(item.name)) upgradeItems.push(item);
+      else hatItems.push(item);
+    } else {
+      const key = titleCase(cat);
+      if (!otherSections.has(key)) otherSections.set(key, []);
+      otherSections.get(key).push(item);
+    }
+  }
+
+  const sections = [];
+  if (hatItems.length) sections.push({ id: uid(), name: "Hats", sub: "Tap to choose the hat", type: "single", items: hatItems });
+  if (upgradeItems.length) sections.push({ id: uid(), name: "Hat Upgrades", sub: "", type: "multi", items: upgradeItems });
+  for (const [name, items] of otherSections) sections.push({ id: uid(), name, sub: "", type: "multi", items });
+
+  catalog.sections = sections;
+  tally = { selections: {}, items: {}, discountCode: "" };
+  save(CATALOG_KEY, catalog);
+  save(TALLY_KEY, tally);
+  expandedId = (catalog.sections[0] || {}).id || null;
+  // Pre-warm the service-worker cache with every synced photo now, while
+  // we're online — so going offline before a section is ever opened still
+  // shows its photos at the bar.
+  for (const s of sections) {
+    for (const it of s.items) {
+      if (it.photo && !String(it.photo).startsWith("data:")) fetch(it.photo).catch(() => {});
+    }
+  }
+  renderEdit();
+  showToast("Imported " + data.items.length + " items from Square" + (data.generatedAt ? " (synced " + String(data.generatedAt).slice(0, 10) + ")" : ""));
+}
+
+/* ================= Edit view ================= */
+
+function renderEdit() {
+  const main = $("#main");
+  let html = '<div class="edit-hint">Changes save automatically on this phone. Sections are either ' +
+    "<b>Pick one</b> (the hat itself — tapping an option selects it and moves on) or <b>Mix &amp; match</b> " +
+    '(steppers). Prices are charged in full — totals only ever go up. Mark "+" on items priced like <b>$15+</b> ' +
+    "so the exact amount is entered at the register. Tap an item's circle to attach a photo.</div>";
+
+  html += '<h2 class="menu-head">The Shop</h2><div class="card edit-card">' +
+    '<div class="field-label">Logo</div>' +
+    '<div class="logo-edit-row"><button class="logo-edit-btn" id="logo-btn">' +
+    (catalog.logo ? '<img src="' + catalog.logo + '" alt="logo">' : "Tap to add the logo from the camera roll") +
+    "</button>" +
+    (catalog.logo ? '<button class="icon-btn danger" id="logo-clear" aria-label="Remove logo">✕</button>' : "") +
+    "</div>" +
+    '<div class="field-label">Shop name</div><div class="edit-row"><input class="text-input" id="edit-shop" value="' + esc(catalog.shopName || "") + '"></div>' +
+    '<div class="field-label">Tagline</div><div class="edit-row"><input class="text-input" id="edit-tagline" value="' + esc(catalog.tagline || "") + '"></div>' +
+    "</div>";
+
+  html += '<h2 class="menu-head">Included With Hat</h2>' +
+    '<div class="menu-sub">Free with every hat — shown to the customer, never charged</div><div class="card"><div class="edit-card">';
+  catalog.includes.forEach((inc, i) => {
+    html += '<div class="opt-edit' + (i === 0 ? " first" : "") + '"><div class="edit-row">' +
+      '<input class="price-input inc-qty-input" inputmode="numeric" data-incqty="' + inc.id + '" value="' + (Number(inc.qty) || 1) + '">' +
+      '<input class="text-input" data-incname="' + inc.id + '" value="' + esc(inc.name) + '" placeholder="Included item">' +
+      '<button class="icon-btn danger" data-del-inc="' + inc.id + '" aria-label="Remove">✕</button>' +
+      "</div></div>";
+  });
+  html += '</div><button class="add-btn" id="add-inc">+ Add included item</button></div>';
+
+  catalog.sections.forEach((section, si) => {
+    html += '<h2 class="menu-head">Section</h2><div class="card"><div class="edit-card">';
+    html += '<div class="edit-row">' +
+      '<input class="text-input group-name-input" data-sname="' + section.id + '" value="' + esc(section.name) + '" placeholder="Section name">' +
+      '<button class="type-toggle' + (section.type === "single" ? " single" : "") + '" data-type="' + section.id + '">' +
+      (section.type === "single" ? "Pick one" : "Mix &amp; match") + "</button>" +
+      "</div>" +
+      '<div class="edit-row"><span class="spacer"></span>' +
+      moveBtns("section", section.id, si, catalog.sections.length) +
+      '<button class="icon-btn danger" data-del-section="' + section.id + '" aria-label="Delete section">🗑</button>' +
+      "</div>";
+    section.items.forEach((item, ii) => {
+      const ref = section.id + ":" + item.id;
+      html += '<div class="opt-edit"><div class="edit-row">' +
+        '<span class="thumb-edit"><button class="thumb" data-photo="' + item.id + '" aria-label="Set photo">' +
+        (item.photo ? '<img src="' + item.photo + '" alt="">' : '<span class="mono">' + esc(monogram(item.name)) + "</span>") +
+        "</button>" +
+        (item.photo ? '<button class="thumb-clear" data-photo-clear="' + item.id + '" aria-label="Remove photo">✕</button>' : "") +
+        "</span>" +
+        '<input class="text-input" data-iname="' + ref + '" value="' + esc(item.name) + '" placeholder="Item name">' +
+        '<button class="icon-btn danger" data-del-item="' + ref + '" aria-label="Delete item">✕</button>' +
+        "</div>" +
+        '<div class="edit-subrow">' +
+        '<span class="price-lbl">$</span>' +
+        '<input class="price-input" inputmode="decimal" data-iprice="' + ref + '" value="' + (Number(item.price) || 0) + '">' +
+        '<button class="var-toggle' + (item.variable ? " on" : "") + '" data-var="' + ref + '" aria-label="Variable price">+</button>' +
+        '<span class="spacer"></span>' +
+        moveBtns("item", ref, ii, section.items.length) +
+        "</div></div>";
+    });
+    html += '</div><button class="add-btn" data-add-item="' + section.id + '">+ Add item</button></div>';
+  });
+  html += '<button class="add-section-btn" id="add-section">+ Add section</button>';
+
+  html += '<h2 class="menu-head">Discount Codes</h2>' +
+    '<div class="menu-sub">Entered at the bottom of the register — % or $ off the total</div><div class="card"><div class="edit-card">';
+  if (catalog.discounts.length) {
+    catalog.discounts.forEach((d, i) => {
+      html += '<div class="opt-edit' + (i === 0 ? " first" : "") + '"><div class="edit-row">' +
+        '<input class="text-input" style="text-transform:uppercase" data-dcode="' + d.id + '" value="' + esc(d.code) + '" placeholder="CODE" autocapitalize="characters" autocorrect="off">' +
+        '<button class="dtype-toggle" data-dtype="' + d.id + '">' + (d.type === "percent" ? "%" : "$") + "</button>" +
+        '<input class="price-input" inputmode="decimal" data-dvalue="' + d.id + '" value="' + (Number(d.value) || 0) + '">' +
+        '<button class="icon-btn danger" data-del-discount="' + d.id + '" aria-label="Delete code">✕</button>' +
+        "</div></div>";
+    });
+  } else {
+    html += '<div class="edit-hint" style="margin:0">No codes yet — add one below (e.g. FRIENDS ' + "→ 10%)" + ".</div>";
+  }
+  html += '</div><button class="add-btn" id="add-discount">+ Add discount code</button></div>';
+
+  html += '<h2 class="menu-head">Square</h2><div class="card edit-card">' +
+    '<div class="field-label">Application ID (for the Charge button)</div>' +
+    '<div class="edit-row"><input class="text-input" id="square-app-id" value="' + esc(catalog.squareAppId || "") + '" placeholder="sq0idp-…" autocapitalize="off" autocorrect="off"></div>' +
+    '<div class="edit-hint" style="margin:8px 0 0">Charge opens the <b>Square Point of Sale</b> app with the total and an itemized note, so payment lands in the connected Square account. Get a free Application ID at <b>developer.squareup.com</b>.</div>' +
+    '<button class="import-btn" id="import-square">⟳ Import items &amp; photos from Square</button>' +
+    '<div class="edit-hint" style="margin:8px 0 0">Pulls the item library synced from the Square account by the repo\'s <b>Sync Square catalog</b> action — every item, price, and product photo. Set up once in the README, then re-run the action any time the Square library changes.</div>' +
+    "</div>";
+
+  html += '<div class="danger-zone"><button id="reset-catalog">Reset menu to the printed price list</button></div>';
+
+  main.innerHTML = html;
+  wireEditHandlers();
+}
+
+function moveBtns(kind, ref, index, length) {
+  return (
+    '<button class="icon-btn" data-move="' + kind + "|" + ref + '|-1"' + (index === 0 ? " disabled" : "") + ' aria-label="Move up">▲</button>' +
+    '<button class="icon-btn" data-move="' + kind + "|" + ref + '|1"' + (index === length - 1 ? " disabled" : "") + ' aria-label="Move down">▼</button>'
+  );
+}
+
+function saveCatalog() { save(CATALOG_KEY, catalog); }
+
+// Free-text money input. Commas are usually thousands separators ("1,550"),
+// but "15,50" typed with a decimal comma must read as 15.50 — not 1550, a
+// 100× overcharge. Rule: a single comma NOT followed by a 3-digit group is a
+// decimal point; otherwise commas are grouping and are stripped.
+function normalizePriceText(value) {
+  let s = String(value).replace(/[^0-9.,]/g, "");
+  if (s.includes(",")) {
+    s = (s.includes(".") || /,\d{3}(?:$|[.,])/.test(s) || (s.match(/,/g) || []).length > 1)
+      ? s.replace(/,/g, "")
+      : s.replace(",", ".");
+  }
+  return s;
+}
+
+function parsePrice(value) {
+  const n = parseFloat(normalizePriceText(value));
+  return isNaN(n) || n < 0 ? 0 : Math.round(n * 100) / 100;
+}
+
+function findSectionItem(ref) {
+  const [sid, iid] = ref.split(":");
+  const section = catalog.sections.find((s) => s.id === sid);
+  const item = section && section.items.find((i) => i.id === iid);
+  return { section, item };
+}
+
+function wireEditHandlers() {
+  const main = $("#main");
+
+  const bindText = (sel, apply) => {
+    main.querySelectorAll(sel).forEach((input) => {
+      input.addEventListener("input", () => { apply(input); saveCatalog(); });
+    });
+  };
+  bindText("#edit-shop", (i) => { catalog.shopName = i.value; renderHeader(); });
+  bindText("#edit-tagline", (i) => { catalog.tagline = i.value; renderHeader(); });
+  bindText("#square-app-id", (i) => { catalog.squareAppId = i.value.trim(); });
+  bindText("[data-incname]", (i) => {
+    const inc = catalog.includes.find((x) => x.id === i.dataset.incname);
+    if (inc) inc.name = i.value;
+  });
+  bindText("[data-sname]", (i) => {
+    const s = catalog.sections.find((x) => x.id === i.dataset.sname);
+    if (s) s.name = i.value;
+  });
+  bindText("[data-iname]", (i) => {
+    const { item } = findSectionItem(i.dataset.iname);
+    if (item) item.name = i.value;
+  });
+  bindText("[data-dcode]", (i) => {
+    const d = catalog.discounts.find((x) => x.id === i.dataset.dcode);
+    if (d) d.code = i.value;
+  });
+
+  main.querySelectorAll("[data-incqty]").forEach((input) => {
+    input.addEventListener("change", () => {
+      const inc = catalog.includes.find((x) => x.id === input.dataset.incqty);
+      if (inc) {
+        inc.qty = Math.max(1, Math.round(parsePrice(input.value)) || 1);
+        input.value = inc.qty;
+        saveCatalog();
+      }
+    });
+  });
+  main.querySelectorAll("[data-iprice]").forEach((input) => {
+    input.addEventListener("change", () => {
+      const { item } = findSectionItem(input.dataset.iprice);
+      if (item) { item.price = parsePrice(input.value); input.value = item.price; saveCatalog(); }
+    });
+  });
+  main.querySelectorAll("[data-dvalue]").forEach((input) => {
+    input.addEventListener("change", () => {
+      const d = catalog.discounts.find((x) => x.id === input.dataset.dvalue);
+      if (d) {
+        d.value = parsePrice(input.value);
+        if (d.type === "percent" && d.value > 100) d.value = 100;
+        input.value = d.value;
+        saveCatalog();
+      }
+    });
+  });
+  main.querySelectorAll("[data-dtype]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const d = catalog.discounts.find((x) => x.id === btn.dataset.dtype);
+      if (d) {
+        d.type = d.type === "percent" ? "amount" : "percent";
+        if (d.type === "percent" && d.value > 100) d.value = 100;
+        saveCatalog(); renderEdit();
+      }
+    });
+  });
+
+  main.querySelectorAll("[data-type]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const s = catalog.sections.find((x) => x.id === btn.dataset.type);
+      if (!s) return;
+      s.type = s.type === "single" ? "multi" : "single";
+      delete tally.selections[s.id];
+      for (const item of s.items) delete tally.items[item.id];
+      saveCatalog(); save(TALLY_KEY, tally);
+      renderEdit();
+    });
+  });
+
+  main.querySelectorAll("[data-var]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const { item } = findSectionItem(btn.dataset.var);
+      if (item) { item.variable = !item.variable; saveCatalog(); renderEdit(); }
+    });
+  });
+
+  $("#logo-btn").addEventListener("click", () => {
+    photoTarget = { kind: "logo" };
+    $("#photo-input").click();
+  });
+  const logoClear = $("#logo-clear");
+  if (logoClear) logoClear.addEventListener("click", () => {
+    catalog.logo = null;
+    saveCatalog(); renderHeader(); renderEdit();
+  });
+  main.querySelectorAll("[data-photo]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      photoTarget = { kind: "item", id: btn.dataset.photo };
+      $("#photo-input").click();
+    });
+  });
+  main.querySelectorAll("[data-photo-clear]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const item = findItem(btn.dataset.photoClear);
+      if (item) { item.photo = null; saveCatalog(); renderEdit(); }
+    });
+  });
+
+  main.querySelectorAll("[data-del-inc]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      catalog.includes = catalog.includes.filter((x) => x.id !== btn.dataset.delInc);
+      saveCatalog(); renderEdit();
+    });
+  });
+  main.querySelectorAll("[data-del-discount]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      catalog.discounts = catalog.discounts.filter((x) => x.id !== btn.dataset.delDiscount);
+      saveCatalog(); renderEdit();
+    });
+  });
+  main.querySelectorAll("[data-del-section]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const s = catalog.sections.find((x) => x.id === btn.dataset.delSection);
+      if (s && confirm('Delete the whole "' + s.name + '" section?')) {
+        for (const item of s.items) delete tally.items[item.id];
+        delete tally.selections[s.id];
+        catalog.sections = catalog.sections.filter((x) => x.id !== s.id);
+        saveCatalog(); save(TALLY_KEY, tally);
+        renderEdit();
+      }
+    });
+  });
+  main.querySelectorAll("[data-del-item]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const { section, item } = findSectionItem(btn.dataset.delItem);
+      if (!section || !item) return;
+      section.items = section.items.filter((i) => i.id !== item.id);
+      delete tally.items[item.id];
+      const sel = tally.selections[section.id];
+      if (sel && sel.itemId === item.id) delete tally.selections[section.id];
+      saveCatalog(); save(TALLY_KEY, tally);
+      renderEdit();
+    });
+  });
+
+  main.querySelectorAll("[data-move]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const [kind, ref, dirStr] = btn.dataset.move.split("|");
+      const dir = parseInt(dirStr, 10);
+      let list, id;
+      if (kind === "section") { list = catalog.sections; id = ref; }
+      else {
+        const { section, item } = findSectionItem(ref);
+        list = section ? section.items : null;
+        id = item ? item.id : null;
+      }
+      if (!list) return;
+      const i = list.findIndex((x) => x.id === id);
+      const j = i + dir;
+      if (i < 0 || j < 0 || j >= list.length) return;
+      [list[i], list[j]] = [list[j], list[i]];
+      saveCatalog(); renderEdit();
+    });
+  });
+
+  $("#add-inc").addEventListener("click", () => {
+    catalog.includes.push({ id: uid(), name: "", qty: 1 });
+    saveCatalog(); renderEdit();
+    focusLast("[data-incname]");
+  });
+  $("#add-discount").addEventListener("click", () => {
+    catalog.discounts.push({ id: uid(), code: "", type: "percent", value: 10 });
+    saveCatalog(); renderEdit();
+    focusLast("[data-dcode]");
+  });
+  main.querySelectorAll("[data-add-item]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const s = catalog.sections.find((x) => x.id === btn.dataset.addItem);
+      if (!s) return;
+      s.items.push({ id: uid(), name: "", price: 0, variable: false, note: "", photo: null });
+      saveCatalog(); renderEdit();
+      focusLast('[data-iname^="' + s.id + '"]');
+    });
+  });
+  $("#add-section").addEventListener("click", () => {
+    catalog.sections.push({ id: uid(), name: "", sub: "", type: "multi", items: [] });
+    saveCatalog(); renderEdit();
+    focusLast("[data-sname]");
+  });
+
+  $("#import-square").addEventListener("click", importSquareCatalog);
+
+  $("#reset-catalog").addEventListener("click", () => {
+    if (confirm("Replace everything with the printed price list defaults? Photos, logo, codes, and the Square ID will be cleared too.")) {
+      catalog = defaultCatalog();
+      tally = { selections: {}, items: {}, discountCode: "" };
+      saveCatalog(); save(TALLY_KEY, tally);
+      expandedId = (catalog.sections[0] || {}).id || null;
+      renderHeader(); renderEdit();
+    }
+  });
+}
+
+function focusLast(selector) {
+  const inputs = document.querySelectorAll(selector);
+  const last = inputs[inputs.length - 1];
+  if (last) last.focus();
+}
+
+/* ---------- Photo attach ---------- */
+
+$("#photo-input").addEventListener("change", (e) => {
+  const file = e.target.files && e.target.files[0];
+  e.target.value = "";
+  if (!file || !photoTarget) return;
+  const target = photoTarget;
+  photoTarget = null;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      if (target.kind === "logo") {
+        // Keep aspect ratio; PNG preserves wordmark transparency.
+        const scale = Math.min(1, 600 / img.width, 240 / img.height);
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        catalog.logo = canvas.toDataURL("image/png");
+      } else {
+        const item = findItem(target.id);
+        if (!item) return;
+        const SIZE = 144;
+        canvas.width = SIZE; canvas.height = SIZE;
+        const side = Math.min(img.width, img.height);
+        ctx.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, SIZE, SIZE);
+        item.photo = canvas.toDataURL("image/jpeg", 0.8);
+      }
+      saveCatalog();
+      renderHeader();
+      if (mode === "edit") renderEdit();
+    };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+});
+
+/* ================= Header & mode switching ================= */
+
+function renderHeader() {
+  const el = $("#masthead");
+  if (catalog.logo) {
+    // The logo artwork carries the tagline itself — don't repeat it below.
+    el.innerHTML = '<img class="logo-img" src="' + catalog.logo + '" alt="' + esc(catalog.shopName || "Logo") + '">';
+  } else {
+    el.innerHTML = '<h1 class="shop-name">' + esc(catalog.shopName || "Hat Bar") + "</h1>" +
+      (catalog.tagline ? '<div class="tagline">' + esc(catalog.tagline) + "</div>" : "");
+  }
+}
+
+function render() {
+  renderHeader();
+  $("#mode-btn").textContent = mode === "tally" ? "Edit Menu" : "Done";
+  if (mode === "tally") renderTally();
+  else { $("#total-bar").hidden = true; renderEdit(); }
+}
+
+$("#mode-btn").addEventListener("click", () => {
+  if (mode === "edit") {
+    for (const id of Object.keys(tally.items)) {
+      if (!findItem(id)) delete tally.items[id];
+    }
+    for (const sid of Object.keys(tally.selections)) {
+      const section = catalog.sections.find((s) => s.id === sid);
+      if (!section || section.type !== "single" || !section.items.some((i) => i.id === tally.selections[sid].itemId)) {
+        delete tally.selections[sid];
+      }
+    }
+    save(TALLY_KEY, tally);
+    if (!catalog.sections.some((s) => s.id === expandedId)) {
+      expandedId = (catalog.sections[0] || {}).id || null;
+    }
+  }
+  mode = mode === "tally" ? "edit" : "tally";
+  window.scrollTo(0, 0);
+  render();
+});
+
+$("#new-hat-btn").addEventListener("click", () => newHat(false));
+$("#charge-btn").addEventListener("click", charge);
+$("#receipt-toggle").addEventListener("click", () => {
+  receiptOpen = !receiptOpen;
+  renderTotalBar();
+});
+
+render();
+
+// A charge handed to Square may never call back into the standalone app
+// (iOS opens the https callback in Safari, whose storage is separate), so ask
+// on relaunch and on every return to the foreground instead of trusting it.
+if (tally.pendingCharge) openPendingChargeSheet();
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && mode === "tally" && tally.pendingCharge) openPendingChargeSheet();
+});
+
+/* ================= Offline support ================= */
+
+if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
+  window.addEventListener("load", () => navigator.serviceWorker.register("sw.js"));
+}
+</script>
+</body>
+</html>
