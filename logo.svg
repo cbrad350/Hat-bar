@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 300" role="img" aria-label="Details Austin — Custom Hat Experience">
+  <!-- DA monogram -->
+  <g fill="#9C5B33" font-family="Georgia, 'Times New Roman', serif">
+    <text x="14" y="216" font-size="252">D</text>
+    <text x="118" y="278" font-size="226">A</text>
+  </g>
+  <!-- divider -->
+  <rect x="338" y="28" width="5" height="244" fill="#9C5B33"/>
+  <!-- wordmark -->
+  <text x="695" y="104" text-anchor="middle" font-size="86" font-weight="500" fill="#241B12"
+        font-family="'Avenir Next', 'Helvetica Neue', Arial, sans-serif"
+        textLength="640" lengthAdjust="spacing">DETAILS</text>
+  <rect x="372" y="174" width="122" height="4" fill="#9C5B33"/>
+  <text x="695" y="192" text-anchor="middle" font-size="54" fill="#9C5B33"
+        font-family="Georgia, 'Times New Roman', serif"
+        textLength="330" lengthAdjust="spacing">AUSTIN</text>
+  <rect x="896" y="174" width="122" height="4" fill="#9C5B33"/>
+  <text x="695" y="258" text-anchor="middle" font-size="31" fill="#241B12"
+        font-family="'Avenir Next', 'Helvetica Neue', Arial, sans-serif"
+        textLength="616" lengthAdjust="spacing">CUSTOM HAT EXPERIENCE</text>
+</svg>

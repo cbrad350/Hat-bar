@@ -1,9 +1,10 @@
 // Service worker so the tally keeps working with no signal at the hat bar.
 // Bump CACHE_VERSION whenever any precached file changes.
-const CACHE_VERSION = "hatbar-v3";
+const CACHE_VERSION = "hatbar-v4";
 const PRECACHE = [
   "./",
   "./index.html",
+  "./logo.svg",
   "./manifest.json",
   "./icons/icon-192.png",
   "./icons/icon-512.png",

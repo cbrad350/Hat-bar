@@ -50,7 +50,7 @@
     display: flex; align-items: center; gap: 10px;
   }
   .masthead { flex: 1; min-width: 0; text-align: left; }
-  .logo-img { display: block; max-height: 44px; max-width: 100%; object-fit: contain; object-position: left center; }
+  .logo-img { display: block; height: 48px; max-width: 100%; object-fit: contain; object-position: left center; }
   .shop-name {
     font-family: var(--serif); font-weight: 700; font-size: 21px;
     letter-spacing: 0.22em; text-transform: uppercase; margin: 0;
@@ -364,9 +364,9 @@ const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random
 function defaultCatalog() {
   const item = (name, price, extra) => Object.assign({ id: uid(), name, price, variable: false, note: "", photo: null }, extra || {});
   return {
-    shopName: "Hat Bar",
+    shopName: "Details Austin",
     tagline: "Custom Hat Experience",
-    logo: null,
+    logo: "logo.svg",
     squareAppId: "",
     includes: [
       { id: uid(), name: "Signature Bands", qty: 3 },
@@ -1315,8 +1315,8 @@ $("#photo-input").addEventListener("change", (e) => {
 function renderHeader() {
   const el = $("#masthead");
   if (catalog.logo) {
-    el.innerHTML = '<img class="logo-img" src="' + catalog.logo + '" alt="' + esc(catalog.shopName || "Logo") + '">' +
-      (catalog.tagline ? '<div class="tagline">' + esc(catalog.tagline) + "</div>" : "");
+    // The logo artwork carries the tagline itself — don't repeat it below.
+    el.innerHTML = '<img class="logo-img" src="' + catalog.logo + '" alt="' + esc(catalog.shopName || "Logo") + '">';
   } else {
     el.innerHTML = '<h1 class="shop-name">' + esc(catalog.shopName || "Hat Bar") + "</h1>" +
       (catalog.tagline ? '<div class="tagline">' + esc(catalog.tagline) + "</div>" : "");
