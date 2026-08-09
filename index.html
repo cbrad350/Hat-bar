@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Hat Bar">
+<meta name="theme-color" content="#F7F1E5">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<title>Hat Bar Tally</title>
+<style>
+  :root {
+    --bg: #F7F1E5;
+    --card: #FFFFFF;
+    --ink: #3B2A1A;
+    --ink-soft: #8A7460;
+    --accent: #8B5E2B;
+    --accent-deep: #6E4A20;
+    --accent-soft: #F0E4D0;
+    --line: #E7DCC9;
+    --good: #3E7C4F;
+    --danger: #B04A3A;
+    --radius: 14px;
+    --shadow: 0 1px 3px rgba(59, 42, 26, 0.08);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+    padding-bottom: calc(120px + env(safe-area-inset-bottom));
+  }
+  button { font: inherit; color: inherit; border: none; background: none; padding: 0; cursor: pointer; }
+  input { font: inherit; color: inherit; }
+
+  header {
+    position: sticky; top: 0; z-index: 20;
+    background: var(--bg);
+    padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--line);
+  }
+  header h1 { font-size: 20px; margin: 0; letter-spacing: 0.2px; }
+  header h1 .tag { color: var(--accent); }
+  .header-btn {
+    font-size: 15px; font-weight: 600; color: var(--accent);
+    padding: 8px 14px; border-radius: 10px; background: var(--accent-soft);
+    min-height: 40px;
+  }
+
+  main { padding: 14px 14px 0; max-width: 560px; margin: 0 auto; }
+
+  .section-title {
+    font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--ink-soft); margin: 20px 6px 8px;
+  }
+  .section-title:first-child { margin-top: 4px; }
+
+  .card {
+    background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
+    margin-bottom: 12px; overflow: hidden;
+  }
+  .card-head {
+    padding: 12px 14px 6px; font-weight: 700; font-size: 17px;
+    display: flex; justify-content: space-between; align-items: baseline;
+  }
+  .card-head .swap-note { font-size: 12px; font-weight: 500; color: var(--ink-soft); }
+
+  /* --- Tally: pick-one option rows --- */
+  .opt-row {
+    display: flex; align-items: center; width: 100%; text-align: left;
+    padding: 13px 14px; gap: 12px; border-top: 1px solid var(--line);
+    min-height: 52px;
+  }
+  .opt-row:first-of-type { border-top: none; }
+  .opt-check {
+    width: 24px; height: 24px; border-radius: 50%; flex: none;
+    border: 2px solid var(--line); display: flex; align-items: center; justify-content: center;
+    color: transparent; font-size: 14px; font-weight: 800; transition: all 0.12s ease;
+  }
+  .opt-row.selected .opt-check { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .opt-name { flex: 1; font-size: 16px; }
+  .opt-row.selected .opt-name { font-weight: 650; }
+  .opt-price { font-size: 15px; font-weight: 600; color: var(--accent); white-space: nowrap; }
+  .opt-price.included { color: var(--ink-soft); font-weight: 500; font-size: 13px; }
+
+  /* --- Tally: add-on rows with steppers --- */
+  .addon-row {
+    display: flex; align-items: center; padding: 10px 14px; gap: 10px;
+    border-top: 1px solid var(--line); min-height: 56px;
+  }
+  .addon-row:first-child { border-top: none; }
+  .addon-info { flex: 1; min-width: 0; }
+  .addon-name { font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .addon-row.active .addon-name { font-weight: 650; }
+  .addon-price { font-size: 13px; color: var(--ink-soft); margin-top: 1px; }
+  .stepper { display: flex; align-items: center; gap: 2px; flex: none; }
+  .step-btn {
+    width: 42px; height: 42px; border-radius: 12px; background: var(--accent-soft);
+    color: var(--accent-deep); font-size: 22px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .step-btn:active { background: var(--line); }
+  .step-btn[disabled] { opacity: 0.35; }
+  .qty { width: 34px; text-align: center; font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .qty.zero { color: var(--line); font-weight: 500; }
+
+  /* --- Total bar --- */
+  .total-bar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+    background: var(--card); border-top: 1px solid var(--line);
+    box-shadow: 0 -4px 16px rgba(59, 42, 26, 0.10);
+    padding: 10px 16px calc(12px + env(safe-area-inset-bottom));
+    max-width: 560px; margin: 0 auto;
+  }
+  @media (min-width: 560px) { .total-bar { border-radius: 16px 16px 0 0; } }
+  .receipt { max-height: 0; overflow: hidden; transition: max-height 0.25s ease; }
+  .total-bar.open .receipt { max-height: 45vh; overflow-y: auto; }
+  .receipt-inner { padding: 4px 2px 10px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+  .receipt-line { display: flex; justify-content: space-between; padding: 5px 0; font-size: 15px; gap: 12px; }
+  .receipt-line .r-name { color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .receipt-line .r-price { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .receipt-empty { color: var(--ink-soft); font-size: 14px; padding: 6px 0 4px; }
+  .total-main { display: flex; align-items: center; gap: 12px; }
+  .total-label-wrap { flex: 1; text-align: left; }
+  .total-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-soft); display: flex; align-items: center; gap: 6px; }
+  .chevron { display: inline-block; transition: transform 0.2s ease; font-size: 11px; }
+  .total-bar.open .chevron { transform: rotate(180deg); }
+  .total-amount { font-size: 30px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.15; }
+  .new-hat-btn {
+    background: var(--accent); color: #fff; font-weight: 700; font-size: 16px;
+    padding: 13px 20px; border-radius: 13px; flex: none; min-height: 50px;
+  }
+  .new-hat-btn:active { background: var(--accent-deep); }
+
+  /* --- Toast --- */
+  .toast {
+    position: fixed; left: 50%; transform: translateX(-50%);
+    bottom: calc(120px + env(safe-area-inset-bottom));
+    background: var(--ink); color: #fff; border-radius: 12px;
+    padding: 11px 16px; font-size: 15px; display: flex; gap: 16px; align-items: center;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25); z-index: 40;
+    opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
+    white-space: nowrap;
+  }
+  .toast.show { opacity: 1; pointer-events: auto; }
+  .toast button { color: #F5C97B; font-weight: 700; }
+
+  /* --- Edit view --- */
+  .edit-card { padding: 12px 14px; }
+  .edit-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .edit-row:last-child { margin-bottom: 0; }
+  .opt-edit { border-top: 1px solid var(--line); padding-top: 10px; margin-top: 10px; }
+  .opt-edit .edit-row { margin-bottom: 0; }
+  .edit-subrow { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+  .price-lbl { font-size: 13px; color: var(--ink-soft); font-weight: 600; white-space: nowrap; }
+  .price-lbl.muted { font-weight: 500; font-style: italic; }
+  .spacer { flex: 1; }
+  .text-input, .price-input {
+    border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
+    background: #FDFBF7; font-size: 16px; min-height: 44px; width: 100%;
+  }
+  .text-input:focus, .price-input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .price-input { width: 86px; flex: none; text-align: right; font-variant-numeric: tabular-nums; }
+  .price-input:disabled { color: var(--ink-soft); background: var(--accent-soft); border-color: transparent; }
+  .group-name-input { font-weight: 700; }
+  .inc-toggle {
+    flex: none; font-size: 11px; font-weight: 700; letter-spacing: 0.03em;
+    padding: 0 10px; min-height: 44px; border-radius: 10px;
+    border: 1.5px solid var(--line); color: var(--ink-soft); background: #fff;
+  }
+  .inc-toggle.on { background: var(--good); border-color: var(--good); color: #fff; }
+  .icon-btn {
+    width: 40px; height: 44px; flex: none; display: flex; align-items: center; justify-content: center;
+    border-radius: 10px; color: var(--ink-soft); font-size: 17px;
+  }
+  .icon-btn:active { background: var(--accent-soft); }
+  .icon-btn.danger { color: var(--danger); }
+  .add-btn {
+    display: block; width: 100%; text-align: center; padding: 12px;
+    color: var(--accent); font-weight: 700; font-size: 15px;
+    border-top: 1px solid var(--line); min-height: 48px;
+  }
+  .add-section-btn {
+    display: block; width: 100%; text-align: center; padding: 14px;
+    background: var(--accent-soft); color: var(--accent-deep); font-weight: 700;
+    border-radius: var(--radius); margin-bottom: 12px; min-height: 50px;
+  }
+  .danger-zone { text-align: center; margin: 26px 0 10px; }
+  .danger-zone button { color: var(--danger); font-weight: 600; font-size: 14px; padding: 10px; }
+  .edit-hint { font-size: 13px; color: var(--ink-soft); margin: 6px 6px 14px; line-height: 1.45; }
+  .base-price-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .base-price-row .lbl { font-weight: 650; }
+  .base-price-row .sub { font-size: 12.5px; color: var(--ink-soft); margin-top: 2px; }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="header-title">Hat Bar <span class="tag">Tally</span></h1>
+  <button class="header-btn" id="mode-btn">Edit&nbsp;Prices</button>
+</header>
+
+<main id="main"></main>
+
+<div class="total-bar" id="total-bar" hidden>
+  <div class="receipt" id="receipt"></div>
+  <div class="total-main">
+    <button class="total-label-wrap" id="receipt-toggle" aria-label="Show itemized list">
+      <div class="total-label"><span id="item-count">No add-ons yet</span> <span class="chevron">▲</span></div>
+      <div class="total-amount" id="total-amount">$0</div>
+    </button>
+    <button class="new-hat-btn" id="new-hat-btn">New&nbsp;Hat</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="toast-msg"></span><button id="toast-undo">Undo</button></div>
+
+<script>
+"use strict";
+
+/* ---------------- Storage & sample catalog ---------------- */
+
+const CATALOG_KEY = "hatbar-catalog-v1";
+const TALLY_KEY = "hatbar-tally-v1";
+
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2));
+
+// Sample catalog — every name and price is editable in the app. "included" options
+// are what comes free with the hat; upgrades only ever ADD to the total.
+function sampleCatalog() {
+  return {
+    basePrice: 0,
+    groups: [
+      {
+        id: uid(), name: "Hat Band",
+        options: [
+          { id: uid(), name: "Grosgrain Ribbon", price: 0, included: true },
+          { id: uid(), name: "Leather Band", price: 10, included: false },
+          { id: uid(), name: "Braided Horsehair", price: 18, included: false },
+          { id: uid(), name: "Silk Scarf Wrap", price: 25, included: false },
+        ],
+      },
+      {
+        id: uid(), name: "Branding / Burning",
+        options: [
+          { id: uid(), name: "Simple Burn Design", price: 0, included: true },
+          { id: uid(), name: "Custom Design", price: 15, included: false },
+          { id: uid(), name: "Full Custom Artwork", price: 40, included: false },
+        ],
+      },
+    ],
+    addons: [
+      { id: uid(), name: "Feather", price: 5 },
+      { id: uid(), name: "Premium Feather", price: 12 },
+      { id: uid(), name: "Playing Card", price: 3 },
+      { id: uid(), name: "Matchstick", price: 2 },
+      { id: uid(), name: "Bullet Casing", price: 4 },
+      { id: uid(), name: "Dried Flowers", price: 8 },
+      { id: uid(), name: "Charm / Pin", price: 6 },
+      { id: uid(), name: "Name Embossing", price: 15 },
+    ],
+  };
+}
+
+function loadJSON(key) {
+  try { return JSON.parse(localStorage.getItem(key)); } catch (e) { return null; }
+}
+function save(key, value) { localStorage.setItem(key, JSON.stringify(value)); }
+
+let catalog = loadJSON(CATALOG_KEY);
+if (!catalog || !Array.isArray(catalog.groups) || !Array.isArray(catalog.addons)) {
+  catalog = sampleCatalog();
+  save(CATALOG_KEY, catalog);
+}
+
+// tally: { selections: { [groupId]: optionId | null }, quantities: { [addonId]: number } }
+let tally = loadJSON(TALLY_KEY) || { selections: {}, quantities: {} };
+let mode = "tally"; // "tally" | "edit"
+let receiptOpen = false;
+let undoTally = null;
+let toastTimer = null;
+
+const $ = (sel) => document.querySelector(sel);
+
+/* ---------------- Helpers ---------------- */
+
+function fmt(n) {
+  const v = Math.round(n * 100) / 100;
+  return Number.isInteger(v)
+    ? "$" + v.toLocaleString("en-US")
+    : "$" + v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function includedOption(group) {
+  return group.options.find((o) => o.included) || null;
+}
+
+// The option currently on the hat for a group: an explicit pick, else whatever's included.
+function selectedOption(group) {
+  const selId = tally.selections[group.id];
+  if (selId) {
+    const opt = group.options.find((o) => o.id === selId);
+    if (opt) return opt;
+  }
+  return includedOption(group);
+}
+
+function optionCharge(opt) {
+  return opt && !opt.included ? Number(opt.price) || 0 : 0;
+}
+
+function computeLines() {
+  const lines = [];
+  if (Number(catalog.basePrice) > 0) {
+    lines.push({ name: "Base Hat", price: Number(catalog.basePrice) });
+  }
+  for (const group of catalog.groups) {
+    const opt = selectedOption(group);
+    const charge = optionCharge(opt);
+    if (opt && charge > 0) lines.push({ name: group.name + " — " + opt.name, price: charge });
+  }
+  for (const addon of catalog.addons) {
+    const qty = tally.quantities[addon.id] || 0;
+    if (qty > 0) {
+      lines.push({
+        name: addon.name + (qty > 1 ? " ×" + qty : ""),
+        price: (Number(addon.price) || 0) * qty,
+      });
+    }
+  }
+  return lines;
+}
+
+function upchargeCount() {
+  let count = 0;
+  for (const group of catalog.groups) {
+    if (optionCharge(selectedOption(group)) > 0) count++;
+  }
+  for (const addon of catalog.addons) count += tally.quantities[addon.id] || 0;
+  return count;
+}
+
+const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+/* ---------------- Tally view ---------------- */
+
+function renderTally() {
+  const main = $("#main");
+  let html = "";
+
+  if (catalog.groups.length) {
+    html += '<div class="section-title">Included — swap to upgrade</div>';
+    for (const group of catalog.groups) {
+      const current = selectedOption(group);
+      html += '<div class="card"><div class="card-head"><span>' + esc(group.name) + "</span>";
+      html += '<span class="swap-note">pick one</span></div>';
+      for (const opt of group.options) {
+        const isSel = current && current.id === opt.id;
+        const priceLabel = opt.included
+          ? '<span class="opt-price included">Included</span>'
+          : '<span class="opt-price">+' + fmt(Number(opt.price) || 0) + "</span>";
+        html +=
+          '<button class="opt-row' + (isSel ? " selected" : "") + '" data-group="' + group.id + '" data-opt="' + opt.id + '">' +
+          '<span class="opt-check">✓</span>' +
+          '<span class="opt-name">' + esc(opt.name) + "</span>" +
+          priceLabel +
+          "</button>";
+      }
+      html += "</div>";
+    }
+  }
+
+  if (catalog.addons.length) {
+    html += '<div class="section-title">Add-Ons — mix &amp; match</div><div class="card">';
+    for (const addon of catalog.addons) {
+      const qty = tally.quantities[addon.id] || 0;
+      html +=
+        '<div class="addon-row' + (qty > 0 ? " active" : "") + '">' +
+        '<div class="addon-info"><div class="addon-name">' + esc(addon.name) + "</div>" +
+        '<div class="addon-price">+' + fmt(Number(addon.price) || 0) + " each</div></div>" +
+        '<div class="stepper">' +
+        '<button class="step-btn" data-dec="' + addon.id + '"' + (qty === 0 ? " disabled" : "") + ">−</button>" +
+        '<span class="qty' + (qty === 0 ? " zero" : "") + '">' + qty + "</span>" +
+        '<button class="step-btn" data-inc="' + addon.id + '">+</button>' +
+        "</div></div>";
+    }
+    html += "</div>";
+  }
+
+  if (!catalog.groups.length && !catalog.addons.length) {
+    html += '<div class="edit-hint">No menu yet — tap "Edit Prices" to set up categories and add-ons.</div>';
+  }
+
+  main.innerHTML = html;
+
+  main.querySelectorAll(".opt-row").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const group = catalog.groups.find((g) => g.id === btn.dataset.group);
+      if (!group) return;
+      const current = selectedOption(group);
+      // Tapping the already-selected upgrade puts the included item back on.
+      if (current && current.id === btn.dataset.opt && !current.included) {
+        delete tally.selections[group.id];
+      } else {
+        tally.selections[group.id] = btn.dataset.opt;
+      }
+      save(TALLY_KEY, tally);
+      renderTally();
+    });
+  });
+  main.querySelectorAll("[data-inc]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.inc;
+      tally.quantities[id] = (tally.quantities[id] || 0) + 1;
+      save(TALLY_KEY, tally);
+      renderTally();
+    });
+  });
+  main.querySelectorAll("[data-dec]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.dec;
+      tally.quantities[id] = Math.max(0, (tally.quantities[id] || 0) - 1);
+      if (!tally.quantities[id]) delete tally.quantities[id];
+      save(TALLY_KEY, tally);
+      renderTally();
+    });
+  });
+
+  renderTotalBar();
+}
+
+function renderTotalBar() {
+  const bar = $("#total-bar");
+  bar.hidden = mode !== "tally";
+  if (bar.hidden) return;
+
+  const lines = computeLines();
+  const total = lines.reduce((sum, l) => sum + l.price, 0);
+  $("#total-amount").textContent = fmt(total);
+
+  const count = upchargeCount();
+  $("#item-count").textContent =
+    count === 0 ? "Included only" : count + (count === 1 ? " upcharge" : " upcharges");
+
+  bar.classList.toggle("open", receiptOpen);
+  $("#receipt").innerHTML = receiptOpen
+    ? '<div class="receipt-inner">' +
+      (lines.length
+        ? lines.map((l) =>
+            '<div class="receipt-line"><span class="r-name">' + esc(l.name) + '</span><span class="r-price">' + fmt(l.price) + "</span></div>"
+          ).join("")
+        : '<div class="receipt-empty">Nothing extra on this hat yet — included picks are free.</div>') +
+      "</div>"
+    : "";
+}
+
+function newHat() {
+  undoTally = tally;
+  tally = { selections: {}, quantities: {} };
+  save(TALLY_KEY, tally);
+  receiptOpen = false;
+  renderTally();
+  showToast("Cleared for the next hat");
+}
+
+function showToast(msg) {
+  $("#toast-msg").textContent = msg;
+  $("#toast").classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => $("#toast").classList.remove("show"), 4000);
+}
+
+$("#toast-undo").addEventListener("click", () => {
+  if (undoTally) {
+    tally = undoTally;
+    undoTally = null;
+    save(TALLY_KEY, tally);
+    renderTally();
+  }
+  $("#toast").classList.remove("show");
+});
+
+/* ---------------- Edit view ---------------- */
+
+function renderEdit() {
+  const main = $("#main");
+  let html = '<div class="edit-hint">Changes save automatically. Mark one option per category as ' +
+    '<b>INCL</b> — that\'s what comes free with the hat; everything else is an upcharge. ' +
+    "There are never any deductions, only add-ons.</div>";
+
+  html += '<div class="section-title">Base price (optional)</div>' +
+    '<div class="card edit-card"><div class="base-price-row">' +
+    '<div><div class="lbl">Base hat price</div><div class="sub">Leave at 0 to tally upcharges only</div></div>' +
+    '<input class="price-input" inputmode="decimal" id="base-price" value="' + (Number(catalog.basePrice) || 0) + '">' +
+    "</div></div>";
+
+  html += '<div class="section-title">Pick-one categories</div>';
+  catalog.groups.forEach((group, gi) => {
+    html += '<div class="card"><div class="edit-card">';
+    html += '<div class="edit-row">' +
+      '<input class="text-input group-name-input" data-gname="' + group.id + '" value="' + esc(group.name) + '" placeholder="Category name">' +
+      moveBtns("group", group.id, gi, catalog.groups.length) +
+      '<button class="icon-btn danger" data-del-group="' + group.id + '" aria-label="Delete category">🗑</button>' +
+      "</div>";
+    group.options.forEach((opt, oi) => {
+      const ref = group.id + ":" + opt.id;
+      html += '<div class="opt-edit"><div class="edit-row">' +
+        '<button class="inc-toggle' + (opt.included ? " on" : "") + '" data-inc-toggle="' + ref + '">INCL</button>' +
+        '<input class="text-input" data-oname="' + ref + '" value="' + esc(opt.name) + '" placeholder="Option name">' +
+        '<button class="icon-btn danger" data-del-opt="' + ref + '" aria-label="Delete option">✕</button>' +
+        "</div>" +
+        '<div class="edit-subrow">' +
+        (opt.included
+          ? '<span class="price-lbl muted">Included with hat — no charge</span>'
+          : '<span class="price-lbl">Upcharge&nbsp;$</span>' +
+            '<input class="price-input" inputmode="decimal" data-oprice="' + ref + '" value="' + (Number(opt.price) || 0) + '">') +
+        '<span class="spacer"></span>' +
+        moveBtns("opt", ref, oi, group.options.length) +
+        "</div></div>";
+    });
+    html += '</div><button class="add-btn" data-add-opt="' + group.id + '">+ Add option</button></div>';
+  });
+  html += '<button class="add-section-btn" id="add-group">+ Add pick-one category</button>';
+
+  html += '<div class="section-title">Add-ons</div>';
+  if (catalog.addons.length) {
+    html += '<div class="card"><div class="edit-card">';
+    catalog.addons.forEach((addon, ai) => {
+      html += '<div class="opt-edit"' + (ai === 0 ? ' style="border-top:none;margin-top:0;padding-top:0"' : "") + '><div class="edit-row">' +
+        '<input class="text-input" data-aname="' + addon.id + '" value="' + esc(addon.name) + '" placeholder="Add-on name">' +
+        '<button class="icon-btn danger" data-del-addon="' + addon.id + '" aria-label="Delete add-on">✕</button>' +
+        "</div>" +
+        '<div class="edit-subrow">' +
+        '<span class="price-lbl">Price&nbsp;$&nbsp;each</span>' +
+        '<input class="price-input" inputmode="decimal" data-aprice="' + addon.id + '" value="' + (Number(addon.price) || 0) + '">' +
+        '<span class="spacer"></span>' +
+        moveBtns("addon", addon.id, ai, catalog.addons.length) +
+        "</div></div>";
+    });
+    html += "</div></div>";
+  }
+  html += '<button class="add-section-btn" id="add-addon">+ Add add-on</button>';
+
+  html += '<div class="danger-zone"><button id="reset-catalog">Reset menu to sample catalog</button></div>';
+
+  main.innerHTML = html;
+  wireEditHandlers();
+}
+
+function moveBtns(kind, ref, index, length) {
+  return (
+    '<button class="icon-btn" data-move="' + kind + ":" + ref + ':-1"' + (index === 0 ? " disabled" : "") + ' aria-label="Move up">▲</button>' +
+    '<button class="icon-btn" data-move="' + kind + ":" + ref + ':1"' + (index === length - 1 ? " disabled" : "") + ' aria-label="Move down">▼</button>'
+  );
+}
+
+function saveCatalog() { save(CATALOG_KEY, catalog); }
+
+function parsePrice(value) {
+  const n = parseFloat(String(value).replace(/[^0-9.]/g, ""));
+  return isNaN(n) || n < 0 ? 0 : Math.round(n * 100) / 100;
+}
+
+function findGroupOpt(ref) {
+  const [gid, oid] = ref.split(":");
+  const group = catalog.groups.find((g) => g.id === gid);
+  const opt = group && group.options.find((o) => o.id === oid);
+  return { group, opt };
+}
+
+function wireEditHandlers() {
+  const main = $("#main");
+
+  const basePrice = $("#base-price");
+  basePrice.addEventListener("change", () => {
+    catalog.basePrice = parsePrice(basePrice.value);
+    basePrice.value = catalog.basePrice;
+    saveCatalog();
+  });
+
+  // Text/price inputs update state in place — no re-render, so typing keeps focus.
+  main.querySelectorAll("[data-gname]").forEach((input) => {
+    input.addEventListener("input", () => {
+      const group = catalog.groups.find((g) => g.id === input.dataset.gname);
+      if (group) { group.name = input.value; saveCatalog(); }
+    });
+  });
+  main.querySelectorAll("[data-oname]").forEach((input) => {
+    input.addEventListener("input", () => {
+      const { opt } = findGroupOpt(input.dataset.oname);
+      if (opt) { opt.name = input.value; saveCatalog(); }
+    });
+  });
+  main.querySelectorAll("[data-oprice]").forEach((input) => {
+    input.addEventListener("change", () => {
+      const { opt } = findGroupOpt(input.dataset.oprice);
+      if (opt) { opt.price = parsePrice(input.value); input.value = opt.price; saveCatalog(); }
+    });
+  });
+  main.querySelectorAll("[data-aname]").forEach((input) => {
+    input.addEventListener("input", () => {
+      const addon = catalog.addons.find((a) => a.id === input.dataset.aname);
+      if (addon) { addon.name = input.value; saveCatalog(); }
+    });
+  });
+  main.querySelectorAll("[data-aprice]").forEach((input) => {
+    input.addEventListener("change", () => {
+      const addon = catalog.addons.find((a) => a.id === input.dataset.aprice);
+      if (addon) { addon.price = parsePrice(input.value); input.value = addon.price; saveCatalog(); }
+    });
+  });
+
+  main.querySelectorAll("[data-inc-toggle]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const { group, opt } = findGroupOpt(btn.dataset.incToggle);
+      if (!group || !opt) return;
+      const turningOn = !opt.included;
+      group.options.forEach((o) => (o.included = false));
+      if (turningOn) { opt.included = true; opt.price = 0; }
+      saveCatalog();
+      renderEdit();
+    });
+  });
+
+  main.querySelectorAll("[data-del-group]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const group = catalog.groups.find((g) => g.id === btn.dataset.delGroup);
+      if (group && confirm('Delete the whole "' + group.name + '" category?')) {
+        catalog.groups = catalog.groups.filter((g) => g.id !== group.id);
+        delete tally.selections[group.id];
+        saveCatalog(); save(TALLY_KEY, tally);
+        renderEdit();
+      }
+    });
+  });
+  main.querySelectorAll("[data-del-opt]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const { group, opt } = findGroupOpt(btn.dataset.delOpt);
+      if (!group || !opt) return;
+      group.options = group.options.filter((o) => o.id !== opt.id);
+      if (tally.selections[group.id] === opt.id) delete tally.selections[group.id];
+      saveCatalog(); save(TALLY_KEY, tally);
+      renderEdit();
+    });
+  });
+  main.querySelectorAll("[data-del-addon]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      catalog.addons = catalog.addons.filter((a) => a.id !== btn.dataset.delAddon);
+      delete tally.quantities[btn.dataset.delAddon];
+      saveCatalog(); save(TALLY_KEY, tally);
+      renderEdit();
+    });
+  });
+
+  main.querySelectorAll("[data-move]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const parts = btn.dataset.move.split(":");
+      const dir = parseInt(parts[parts.length - 1], 10);
+      const kind = parts[0];
+      let list;
+      let id;
+      if (kind === "group") { list = catalog.groups; id = parts[1]; }
+      else if (kind === "addon") { list = catalog.addons; id = parts[1]; }
+      else {
+        const group = catalog.groups.find((g) => g.id === parts[1]);
+        list = group ? group.options : null; id = parts[2];
+      }
+      if (!list) return;
+      const i = list.findIndex((x) => x.id === id);
+      const j = i + dir;
+      if (i < 0 || j < 0 || j >= list.length) return;
+      [list[i], list[j]] = [list[j], list[i]];
+      saveCatalog();
+      renderEdit();
+    });
+  });
+
+  main.querySelectorAll("[data-add-opt]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const group = catalog.groups.find((g) => g.id === btn.dataset.addOpt);
+      if (!group) return;
+      group.options.push({ id: uid(), name: "", price: 0, included: false });
+      saveCatalog();
+      renderEdit();
+      focusLastInput('[data-oname^="' + group.id + '"]');
+    });
+  });
+  $("#add-group").addEventListener("click", () => {
+    const group = { id: uid(), name: "", options: [{ id: uid(), name: "", price: 0, included: true }] };
+    catalog.groups.push(group);
+    saveCatalog();
+    renderEdit();
+    focusLastInput("[data-gname]");
+  });
+  $("#add-addon").addEventListener("click", () => {
+    catalog.addons.push({ id: uid(), name: "", price: 0 });
+    saveCatalog();
+    renderEdit();
+    focusLastInput("[data-aname]");
+  });
+
+  $("#reset-catalog").addEventListener("click", () => {
+    if (confirm("Replace the whole menu with the sample catalog? This can't be undone.")) {
+      catalog = sampleCatalog();
+      tally = { selections: {}, quantities: {} };
+      saveCatalog(); save(TALLY_KEY, tally);
+      renderEdit();
+    }
+  });
+}
+
+function focusLastInput(selector) {
+  const inputs = document.querySelectorAll(selector);
+  const last = inputs[inputs.length - 1];
+  if (last) last.focus();
+}
+
+/* ---------------- Mode switching ---------------- */
+
+function render() {
+  $("#mode-btn").textContent = mode === "tally" ? "Edit Prices" : "Done";
+  $("#header-title").innerHTML = mode === "tally"
+    ? 'Hat Bar <span class="tag">Tally</span>'
+    : 'Hat Bar <span class="tag">Menu</span>';
+  if (mode === "tally") renderTally();
+  else { $("#total-bar").hidden = true; renderEdit(); }
+}
+
+$("#mode-btn").addEventListener("click", () => {
+  // Leaving edit mode: drop tally picks that no longer resolve to a real option.
+  if (mode === "edit") {
+    for (const gid of Object.keys(tally.selections)) {
+      const group = catalog.groups.find((g) => g.id === gid);
+      if (!group || !group.options.some((o) => o.id === tally.selections[gid])) {
+        delete tally.selections[gid];
+      }
+    }
+    save(TALLY_KEY, tally);
+  }
+  mode = mode === "tally" ? "edit" : "tally";
+  window.scrollTo(0, 0);
+  render();
+});
+
+$("#new-hat-btn").addEventListener("click", newHat);
+$("#receipt-toggle").addEventListener("click", () => {
+  receiptOpen = !receiptOpen;
+  renderTotalBar();
+});
+
+render();
+
+/* ---------------- Offline support ---------------- */
+
+if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
+  window.addEventListener("load", () => navigator.serviceWorker.register("sw.js"));
+}
+</script>
+</body>
+</html>
