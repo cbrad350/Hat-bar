@@ -17,7 +17,7 @@
     --card-deep: #EFE8DA;
     --ink: #241B12;           /* espresso */
     --ink-soft: #7C6C58;
-    --accent: #9C5B33;        /* copper, like the AUSTIN wordmark */
+    --accent: #9C5B33;        /* copper, like the wordmark */
     --accent-deep: #7C4425;
     --accent-soft: #E4D6C2;
     --line: #DDD2BF;
@@ -41,7 +41,7 @@
   button { font: inherit; color: inherit; border: none; background: none; padding: 0; cursor: pointer; }
   input, textarea { font: inherit; color: inherit; }
 
-  /* ---------- Header, styled like the printed menu masthead ---------- */
+  /* ---------- Header masthead ---------- */
   header {
     position: sticky; top: 0; z-index: 20;
     background: var(--bg);
@@ -50,6 +50,7 @@
     display: flex; align-items: center; gap: 10px;
   }
   .masthead { flex: 1; min-width: 0; text-align: left; }
+  .logo-img { display: block; max-height: 44px; max-width: 100%; object-fit: contain; object-position: left center; }
   .shop-name {
     font-family: var(--serif); font-weight: 700; font-size: 21px;
     letter-spacing: 0.22em; text-transform: uppercase; margin: 0;
@@ -69,7 +70,6 @@
 
   main { padding: 6px 14px 0; max-width: 560px; margin: 0 auto; }
 
-  /* Menu-style centered section heading with flanking rules */
   .menu-head {
     display: flex; align-items: center; gap: 14px;
     font-family: var(--serif); font-weight: 700; font-size: 16px;
@@ -87,26 +87,46 @@
     margin-bottom: 14px; overflow: hidden;
   }
 
-  /* ---------- Base hat card ---------- */
-  .base-card { padding: 16px; text-align: center; }
-  .base-name { font-family: var(--serif); font-size: 19px; font-weight: 700; letter-spacing: 0.04em; }
-  .base-price { font-family: var(--serif); font-size: 30px; font-weight: 700; color: var(--accent-deep); margin: 4px 0 8px; }
-  .base-includes { font-size: 13.5px; color: var(--ink-soft); line-height: 1.55; }
-  .base-includes b { color: var(--ink); font-weight: 650; }
-  .base-includes .lead { display: block; font-size: 10.5px; letter-spacing: 0.22em; text-transform: uppercase; margin-bottom: 4px; color: var(--accent); font-weight: 700; }
+  /* ---------- Accordion sections ---------- */
+  .sec { margin-bottom: 12px; scroll-margin-top: 86px; }
+  .sec-head {
+    display: flex; align-items: center; width: 100%; text-align: left; gap: 12px;
+    background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 14px 16px; min-height: 64px;
+  }
+  .sec.open .sec-head { border-radius: var(--radius) var(--radius) 0 0; }
+  .sec-titles { flex: 1; min-width: 0; }
+  .sec-title {
+    font-family: var(--serif); font-weight: 700; font-size: 17px;
+    letter-spacing: 0.16em; text-transform: uppercase;
+  }
+  .sec-status { font-size: 13px; color: var(--ink-soft); margin-top: 2px; }
+  .sec-status.picked { color: var(--accent-deep); font-weight: 600; }
+  .sec-chev { color: var(--ink-soft); font-size: 13px; transition: transform 0.2s ease; flex: none; }
+  .sec.open .sec-chev { transform: rotate(180deg); }
+  .sec-body {
+    background: var(--card); border-radius: 0 0 var(--radius) var(--radius);
+    box-shadow: var(--shadow); border-top: 1px solid var(--line);
+  }
+  .includes-banner {
+    font-size: 12.5px; color: var(--ink-soft); font-style: italic; font-family: var(--serif);
+    padding: 10px 16px; border-bottom: 1px solid var(--line); line-height: 1.5;
+  }
+  .includes-banner b { color: var(--accent-deep); font-style: normal; }
 
-  /* ---------- Menu item rows ---------- */
+  /* ---------- Item rows ---------- */
   .item-row {
     display: flex; align-items: center; padding: 10px 12px; gap: 12px;
     border-top: 1px solid var(--line); min-height: 64px;
   }
-  .item-row:first-child { border-top: none; }
+  .item-row:first-child, .includes-banner + .item-row { border-top: none; }
   .item-row.active { background: var(--card-deep); }
   .thumb {
     width: 46px; height: 46px; border-radius: 50%; flex: none; overflow: hidden;
     background: var(--accent-soft); border: 1px solid var(--line-deep);
     display: flex; align-items: center; justify-content: center;
   }
+  .pick-row .thumb { width: 56px; height: 56px; border-radius: 14px; }
   .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .thumb .mono {
     font-family: var(--serif); font-weight: 700; font-size: 15px;
@@ -130,6 +150,37 @@
   .step-btn[disabled] { opacity: 0.3; }
   .qty { width: 32px; text-align: center; font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
   .qty.zero { color: var(--line-deep); font-weight: 500; }
+  .pick-check {
+    width: 26px; height: 26px; border-radius: 50%; flex: none;
+    border: 2px solid var(--line-deep); display: flex; align-items: center; justify-content: center;
+    color: transparent; font-size: 14px; font-weight: 800;
+  }
+  .pick-row.active .pick-check { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .pick-price { font-family: var(--serif); font-weight: 700; font-size: 17px; color: var(--accent-deep); flex: none; }
+  .next-btn {
+    display: block; width: 100%; text-align: center; padding: 13px;
+    color: var(--accent-deep); font-weight: 700; font-size: 15px;
+    border-top: 1px solid var(--line); min-height: 50px; letter-spacing: 0.06em;
+  }
+
+  /* ---------- Discount card ---------- */
+  .discount-card { padding: 12px 14px; scroll-margin-top: 86px; }
+  .discount-row { display: flex; gap: 8px; }
+  .discount-row input {
+    flex: 1; border: 1px solid var(--line-deep); border-radius: 12px; padding: 10px 14px;
+    background: #FDFBF6; font-size: 16px; min-height: 48px; text-transform: uppercase;
+  }
+  .apply-btn {
+    background: var(--ink); color: var(--card); font-weight: 700; padding: 0 20px;
+    border-radius: 12px; min-height: 48px; flex: none;
+  }
+  .applied-row { display: flex; align-items: center; gap: 10px; }
+  .applied-code {
+    background: var(--good); color: #fff; font-weight: 700; letter-spacing: 0.06em;
+    padding: 6px 12px; border-radius: 999px; font-size: 14px;
+  }
+  .applied-amt { flex: 1; font-weight: 700; color: var(--good); font-size: 16px; }
+  .applied-remove { color: var(--danger); font-weight: 700; padding: 8px; }
 
   /* ---------- Total bar ---------- */
   .total-bar {
@@ -146,6 +197,7 @@
   .receipt-line { display: flex; justify-content: space-between; padding: 4px 0; font-size: 15px; gap: 12px; }
   .receipt-line .r-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .receipt-line .r-price { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .receipt-line.r-discount .r-name, .receipt-line.r-discount .r-price { color: var(--good); font-weight: 700; }
   .receipt-foot { font-size: 12px; color: var(--ink-soft); padding-top: 7px; line-height: 1.5; font-style: italic; }
   .total-main { display: flex; align-items: center; gap: 8px; }
   .total-label-wrap { flex: 1; text-align: left; min-width: 0; }
@@ -177,7 +229,7 @@
   .toast.show { opacity: 1; pointer-events: auto; }
   .toast button { color: #E8B77D; font-weight: 700; flex: none; }
 
-  /* ---------- Modal (variable price / square setup) ---------- */
+  /* ---------- Modal ---------- */
   .overlay {
     position: fixed; inset: 0; background: rgba(36, 27, 18, 0.45); z-index: 50;
     display: flex; align-items: center; justify-content: center; padding: 24px;
@@ -223,11 +275,15 @@
   }
   .icon-btn:active { background: var(--accent-soft); }
   .icon-btn.danger { color: var(--danger); }
-  .var-toggle {
-    flex: none; font-size: 15px; font-weight: 800; min-width: 44px; min-height: 44px;
+  .var-toggle, .type-toggle, .dtype-toggle {
+    flex: none; font-weight: 700; min-height: 44px;
     border-radius: 10px; border: 1.5px solid var(--line-deep); color: var(--ink-soft); background: var(--card);
   }
+  .var-toggle { font-size: 15px; font-weight: 800; min-width: 44px; }
   .var-toggle.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .type-toggle { font-size: 12px; padding: 0 12px; letter-spacing: 0.03em; }
+  .type-toggle.single { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .dtype-toggle { font-size: 16px; min-width: 44px; }
   .thumb-edit { position: relative; flex: none; }
   .thumb-edit .thumb { width: 44px; height: 44px; }
   .thumb-clear {
@@ -247,20 +303,29 @@
     border-radius: var(--radius); margin-bottom: 14px; min-height: 50px;
     border: 1px solid var(--line-deep);
   }
+  .import-btn {
+    display: block; width: 100%; text-align: center; padding: 13px;
+    background: var(--ink); color: var(--card); font-weight: 700;
+    border-radius: 12px; min-height: 50px; margin-top: 10px;
+  }
   .danger-zone { text-align: center; margin: 26px 0 10px; }
   .danger-zone button { color: var(--danger); font-weight: 600; font-size: 14px; padding: 10px; }
   .edit-hint { font-size: 13px; color: var(--ink-soft); margin: 10px 6px 14px; line-height: 1.5; }
-  .edit-hint a { color: var(--accent-deep); }
+  .edit-hint b { color: var(--ink); }
   .field-label { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft); margin: 10px 2px 5px; }
   .field-label:first-child { margin-top: 0; }
+  .logo-edit-row { display: flex; align-items: center; gap: 12px; }
+  .logo-edit-btn {
+    flex: 1; min-height: 60px; border: 1.5px dashed var(--line-deep); border-radius: 12px;
+    display: flex; align-items: center; justify-content: center; color: var(--ink-soft);
+    font-size: 14px; font-weight: 600; padding: 8px; overflow: hidden;
+  }
+  .logo-edit-btn img { max-height: 44px; max-width: 100%; object-fit: contain; }
 </style>
 </head>
 <body>
 <header>
-  <div class="masthead">
-    <h1 class="shop-name" id="shop-name">Hat Bar</h1>
-    <div class="tagline" id="shop-tagline">Custom Hat Experience</div>
-  </div>
+  <div class="masthead" id="masthead"></div>
   <button class="header-btn" id="mode-btn">Edit Menu</button>
 </header>
 
@@ -270,7 +335,7 @@
   <div class="receipt" id="receipt"></div>
   <div class="total-main">
     <button class="total-label-wrap" id="receipt-toggle" aria-label="Show itemized list">
-      <div class="total-label"><span id="item-count">Base hat</span> <span class="chevron">▲</span></div>
+      <div class="total-label"><span id="item-count">Choose a hat</span> <span class="chevron">▲</span></div>
       <div class="total-amount" id="total-amount">$0</div>
     </button>
     <button class="new-hat-btn" id="new-hat-btn">New<br>Hat</button>
@@ -287,22 +352,21 @@
 
 /* ================= Storage & default catalog ================= */
 
-const CATALOG_KEY = "hatbar-catalog-v2";
-const TALLY_KEY = "hatbar-tally-v2";
+const CATALOG_KEY = "hatbar-catalog-v3";
+const TALLY_KEY = "hatbar-tally-v3";
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2));
 
-// Real menu. Base price includes an allowance of standard adornments; everything
-// below is charged at full list price — swaps and extras only ever ADD (no deducts).
-// "variable" items are the "$15+" style prices: the price is a starting point and
-// the actual amount is entered when the item is added to a hat.
+// Sections are either type "single" (tap one — the hat itself) or "multi"
+// (mix & match with quantity steppers). Prices are charged in full; the
+// included allowance is free and informational — totals only ever go up.
+// "variable" marks "$N+" pricing: the exact amount is entered at the register.
 function defaultCatalog() {
   const item = (name, price, extra) => Object.assign({ id: uid(), name, price, variable: false, note: "", photo: null }, extra || {});
   return {
     shopName: "Hat Bar",
     tagline: "Custom Hat Experience",
-    baseLabel: "Women's Custom Hat",
-    basePrice: 185,
+    logo: null,
     squareAppId: "",
     includes: [
       { id: uid(), name: "Signature Bands", qty: 3 },
@@ -310,17 +374,18 @@ function defaultCatalog() {
       { id: uid(), name: "Small Pin", qty: 1 },
       { id: uid(), name: "Burnt-In Brand", qty: 1 },
     ],
+    discounts: [],
     sections: [
       {
-        id: uid(), name: "Hat Upgrades", sub: "",
-        items: [item("Premium Hat Collection", 40, { variable: true, note: "Select premium styles & expanded sizes" })],
+        id: uid(), name: "Hats", sub: "Tap to choose the hat", type: "single",
+        items: [item("Classic Collection Hat", 185), item("AHM Collection Hat", 225)],
       },
       {
-        id: uid(), name: "Feathers", sub: "",
-        items: [item("Signature Feather", 2), item("Pompas Grass", 2), item("Luxe Feather", 6)],
+        id: uid(), name: "Hat Upgrades", sub: "", type: "multi",
+        items: [item("Premium Hat Upgrade", 40, { variable: true, note: "Select premium styles & expanded sizes" })],
       },
       {
-        id: uid(), name: "Bands", sub: "",
+        id: uid(), name: "Bands", sub: "", type: "multi",
         items: [
           item("Signature Band", 3), item("Vegan Leather Band", 8), item("Leather Cord", 8),
           item("Barbed Wire", 8), item("Leather Band", 12), item("Scarf", 15),
@@ -328,7 +393,11 @@ function defaultCatalog() {
         ],
       },
       {
-        id: uid(), name: "Details", sub: "",
+        id: uid(), name: "Feathers", sub: "", type: "multi",
+        items: [item("Signature Feather", 2), item("Pompas Grass", 2), item("Luxe Feather", 6)],
+      },
+      {
+        id: uid(), name: "Details", sub: "", type: "multi",
         items: [
           item("Playing Cards", 2), item("Custom Brand", 2), item("Small Pin", 3),
           item("Large Pin", 5), item("Agate Beads", 5), item("Chain", 5, { variable: true }),
@@ -349,17 +418,20 @@ if (!catalog || !Array.isArray(catalog.sections)) {
   catalog = defaultCatalog();
   save(CATALOG_KEY, catalog);
 }
+if (!Array.isArray(catalog.discounts)) catalog.discounts = [];
 
-// tally.items: { [itemId]: { qty, price } } — price is the unit price actually
-// charged (list price, or the amount entered for a variable-priced item).
-let tally = loadJSON(TALLY_KEY) || { items: {} };
-if (!tally.items) tally = { items: {} };
+// tally: selections per single-section {sectionId: {itemId, price}},
+// items per multi-section item {itemId: {qty, price}}, discountCode string.
+let tally = loadJSON(TALLY_KEY);
+if (!tally || !tally.items || !tally.selections) tally = { selections: {}, items: {}, discountCode: "" };
 
 let mode = "tally";
+let expandedId = (catalog.sections[0] || {}).id || null;
 let receiptOpen = false;
 let undoTally = null;
 let toastTimer = null;
-let photoTargetItemId = null;
+let photoTarget = null; // {kind: "item"|"logo", id}
+let scrollTargetId = null;
 
 const $ = (sel) => document.querySelector(sel);
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -371,94 +443,190 @@ function fmt(n) {
     : "$" + v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function allItems() {
-  return catalog.sections.flatMap((s) => s.items);
-}
-function findItem(id) {
-  return allItems().find((i) => i.id === id) || null;
-}
+function allItems() { return catalog.sections.flatMap((s) => s.items); }
+function findItem(id) { return allItems().find((i) => i.id === id) || null; }
 function monogram(name) {
   const words = String(name).trim().split(/\s+/).filter(Boolean);
   return (words.length >= 2 ? words[0][0] + words[1][0] : (words[0] || "?").slice(0, 2)).toUpperCase();
 }
-
-function computeLines() {
-  const lines = [];
-  if (Number(catalog.basePrice) > 0) lines.push({ name: catalog.baseLabel || "Base Hat", price: Number(catalog.basePrice) });
-  for (const item of allItems()) {
-    const entry = tally.items[item.id];
-    if (entry && entry.qty > 0) {
-      lines.push({
-        name: item.name + (entry.qty > 1 ? " ×" + entry.qty : ""),
-        price: entry.qty * (Number(entry.price) || 0),
-      });
-    }
-  }
-  return lines;
-}
-function computeTotal() {
-  return computeLines().reduce((sum, l) => sum + l.price, 0);
-}
-function addonCount() {
-  return Object.values(tally.items).reduce((n, e) => n + (e.qty || 0), 0);
-}
 function includesSummary() {
   return catalog.includes.map((inc) => (inc.qty > 1 ? inc.qty + "× " : "") + inc.name).join(", ");
+}
+function findDiscount(code) {
+  const norm = String(code || "").trim().toUpperCase();
+  if (!norm) return null;
+  return catalog.discounts.find((d) => String(d.code).trim().toUpperCase() === norm) || null;
+}
+
+/* ================= Bill math ================= */
+
+function computeBill() {
+  const lines = [];
+  for (const section of catalog.sections) {
+    if (section.type !== "single") continue;
+    const sel = tally.selections[section.id];
+    if (!sel) continue;
+    const item = section.items.find((i) => i.id === sel.itemId);
+    if (item) lines.push({ name: item.name, price: Number(sel.price) || 0 });
+  }
+  for (const section of catalog.sections) {
+    if (section.type === "single") continue;
+    for (const item of section.items) {
+      const entry = tally.items[item.id];
+      if (entry && entry.qty > 0) {
+        lines.push({ name: item.name + (entry.qty > 1 ? " ×" + entry.qty : ""), price: entry.qty * (Number(entry.price) || 0) });
+      }
+    }
+  }
+  const subtotal = lines.reduce((sum, l) => sum + l.price, 0);
+  let discount = null;
+  const d = findDiscount(tally.discountCode);
+  if (d && subtotal > 0) {
+    const raw = d.type === "percent" ? (subtotal * (Number(d.value) || 0)) / 100 : Number(d.value) || 0;
+    const amount = Math.min(subtotal, Math.round(raw * 100) / 100);
+    if (amount > 0) discount = { code: String(d.code).trim().toUpperCase(), amount };
+  }
+  return { lines, subtotal, discount, total: Math.max(0, subtotal - (discount ? discount.amount : 0)) };
+}
+
+function enhancementCount() {
+  return Object.values(tally.items).reduce((n, e) => n + (e.qty || 0), 0);
+}
+function hatChosen() {
+  return catalog.sections.some((s) => s.type === "single" && tally.selections[s.id]);
 }
 
 /* ================= Tally view ================= */
 
 function thumbHTML(item) {
   return '<span class="thumb">' +
-    (item.photo ? '<img src="' + item.photo + '" alt="">' : '<span class="mono">' + esc(monogram(item.name)) + "</span>") +
+    (item.photo ? '<img src="' + item.photo + '" alt="" loading="lazy">' : '<span class="mono">' + esc(monogram(item.name)) + "</span>") +
     "</span>";
+}
+
+function sectionStatus(section) {
+  if (section.type === "single") {
+    const sel = tally.selections[section.id];
+    if (!sel) return { text: "Tap to choose", picked: false };
+    const item = section.items.find((i) => i.id === sel.itemId);
+    return item ? { text: item.name + " · " + fmt(sel.price), picked: true } : { text: "Tap to choose", picked: false };
+  }
+  let qty = 0, sum = 0;
+  for (const item of section.items) {
+    const entry = tally.items[item.id];
+    if (entry && entry.qty > 0) { qty += entry.qty; sum += entry.qty * (Number(entry.price) || 0); }
+  }
+  return qty > 0
+    ? { text: qty + (qty === 1 ? " item" : " items") + " · +" + fmt(sum), picked: true }
+    : { text: "Mix & match", picked: false };
 }
 
 function renderTally() {
   const main = $("#main");
   let html = "";
 
-  html += '<div class="card base-card" style="margin-top:12px">' +
-    '<div class="base-name">' + esc(catalog.baseLabel || "Custom Hat") + "</div>" +
-    '<div class="base-price">' + fmt(Number(catalog.basePrice) || 0) + "</div>" +
-    '<div class="base-includes"><span class="lead">Includes</span>' +
-    catalog.includes.map((inc) => "<b>" + (inc.qty > 1 ? inc.qty + " " : "") + esc(inc.name) + "</b>").join('<span style="color:var(--line-deep)"> · </span>') +
-    "</div></div>";
-
-  for (const section of catalog.sections) {
-    if (!section.items.length) continue;
-    html += '<h2 class="menu-head">' + esc(section.name) + "</h2>";
-    if (section.sub) html += '<div class="menu-sub">' + esc(section.sub) + "</div>";
-    html += '<div class="card">';
-    for (const item of section.items) {
-      const entry = tally.items[item.id];
-      const qty = entry ? entry.qty : 0;
-      const listPrice = Number(item.price) || 0;
-      let priceHtml;
-      if (qty > 0) {
-        priceHtml = fmt(entry.price) + " each";
-        if (item.variable) priceHtml = '<button data-editprice="' + item.id + '">' + priceHtml + " · adjust</button>";
-      } else {
-        priceHtml = fmt(listPrice) + (item.variable ? "+" : "");
+  catalog.sections.forEach((section, si) => {
+    if (!section.items.length) return;
+    const open = expandedId === section.id;
+    const status = sectionStatus(section);
+    html += '<section class="sec' + (open ? " open" : "") + '" id="sec-' + section.id + '">' +
+      '<button class="sec-head" data-toggle="' + section.id + '">' +
+      '<div class="sec-titles"><div class="sec-title">' + esc(section.name) + "</div>" +
+      '<div class="sec-status' + (status.picked ? " picked" : "") + '">' + esc(status.text) + "</div></div>" +
+      '<span class="sec-chev">▼</span></button>';
+    if (open) {
+      html += '<div class="sec-body">';
+      if (section.type === "single" && catalog.includes.length) {
+        html += '<div class="includes-banner">Every hat includes <b>' + esc(includesSummary()) + "</b> — swaps &amp; extras below are list price, never deducted.</div>";
       }
-      html +=
-        '<div class="item-row' + (qty > 0 ? " active" : "") + '">' +
-        thumbHTML(item) +
-        '<div class="item-info"><div class="item-name">' + esc(item.name) + "</div>" +
-        '<div class="item-price">' + priceHtml + "</div>" +
-        (item.note ? '<div class="item-note">' + esc(item.note) + "</div>" : "") +
-        "</div>" +
-        '<div class="stepper">' +
-        '<button class="step-btn" data-dec="' + item.id + '"' + (qty === 0 ? " disabled" : "") + ">−</button>" +
-        '<span class="qty' + (qty === 0 ? " zero" : "") + '">' + qty + "</span>" +
-        '<button class="step-btn" data-inc="' + item.id + '">+</button>' +
-        "</div></div>";
+      for (const item of section.items) {
+        if (section.type === "single") {
+          const sel = tally.selections[section.id];
+          const isSel = sel && sel.itemId === item.id;
+          html += '<button class="item-row pick-row' + (isSel ? " active" : "") + '" data-pick="' + section.id + ":" + item.id + '">' +
+            thumbHTML(item) +
+            '<div class="item-info"><div class="item-name">' + esc(item.name) + "</div>" +
+            (item.note ? '<div class="item-note">' + esc(item.note) + "</div>" : "") +
+            "</div>" +
+            '<span class="pick-price">' + fmt(Number(item.price) || 0) + (item.variable ? "+" : "") + "</span>" +
+            '<span class="pick-check">✓</span>' +
+            "</button>";
+        } else {
+          const entry = tally.items[item.id];
+          const qty = entry ? entry.qty : 0;
+          let priceHtml;
+          if (qty > 0) {
+            priceHtml = fmt(entry.price) + " each";
+            if (item.variable) priceHtml = '<button data-editprice="' + item.id + '">' + priceHtml + " · adjust</button>";
+          } else {
+            priceHtml = fmt(Number(item.price) || 0) + (item.variable ? "+" : "");
+          }
+          html += '<div class="item-row' + (qty > 0 ? " active" : "") + '">' +
+            thumbHTML(item) +
+            '<div class="item-info"><div class="item-name">' + esc(item.name) + "</div>" +
+            '<div class="item-price">' + priceHtml + "</div>" +
+            (item.note ? '<div class="item-note">' + esc(item.note) + "</div>" : "") +
+            "</div>" +
+            '<div class="stepper">' +
+            '<button class="step-btn" data-dec="' + item.id + '"' + (qty === 0 ? " disabled" : "") + ">−</button>" +
+            '<span class="qty' + (qty === 0 ? " zero" : "") + '">' + qty + "</span>" +
+            '<button class="step-btn" data-inc="' + item.id + '">+</button>' +
+            "</div></div>";
+        }
+      }
+      if (section.type !== "single") {
+        html += '<button class="next-btn" data-next="' + si + '">Next section ↓</button>';
+      }
+      html += "</div>";
     }
-    html += "</div>";
+    html += "</section>";
+  });
+
+  html += '<h2 class="menu-head">Discount</h2><div class="card discount-card" id="discount-card">';
+  const bill = computeBill();
+  if (bill.discount) {
+    html += '<div class="applied-row"><span class="applied-code">' + esc(bill.discount.code) + "</span>" +
+      '<span class="applied-amt">−' + fmt(bill.discount.amount) + " off</span>" +
+      '<button class="applied-remove" id="discount-remove">Remove</button></div>';
+  } else {
+    html += '<div class="discount-row"><input id="discount-input" placeholder="Discount code" autocapitalize="characters" autocorrect="off">' +
+      '<button class="apply-btn" id="discount-apply">Apply</button></div>';
   }
+  html += "</div>";
 
   main.innerHTML = html;
 
+  main.querySelectorAll("[data-toggle]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      expandedId = expandedId === btn.dataset.toggle ? null : btn.dataset.toggle;
+      if (expandedId) scrollTargetId = "sec-" + expandedId;
+      renderTally();
+    });
+  });
+  main.querySelectorAll("[data-pick]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const [sid, iid] = btn.dataset.pick.split(":");
+      const section = catalog.sections.find((s) => s.id === sid);
+      const item = section && section.items.find((i) => i.id === iid);
+      if (!section || !item) return;
+      const sel = tally.selections[sid];
+      if (sel && sel.itemId === iid) {
+        delete tally.selections[sid];
+        save(TALLY_KEY, tally);
+        renderTally();
+      } else if (item.variable) {
+        openPriceSheet(item, Number(item.price) || 0, (price) => {
+          tally.selections[sid] = { itemId: iid, price };
+          save(TALLY_KEY, tally);
+          advanceFrom(sid);
+        });
+      } else {
+        tally.selections[sid] = { itemId: iid, price: Number(item.price) || 0 };
+        save(TALLY_KEY, tally);
+        advanceFrom(sid);
+      }
+    });
+  });
   main.querySelectorAll("[data-inc]").forEach((btn) => {
     btn.addEventListener("click", () => incrementItem(btn.dataset.inc));
   });
@@ -484,8 +652,56 @@ function renderTally() {
       });
     });
   });
+  main.querySelectorAll("[data-next]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const idx = parseInt(btn.dataset.next, 10);
+      const next = catalog.sections.slice(idx + 1).find((s) => s.items.length);
+      expandedId = next ? next.id : null;
+      scrollTargetId = next ? "sec-" + next.id : "discount-card";
+      renderTally();
+    });
+  });
+
+  const applyBtn = $("#discount-apply");
+  if (applyBtn) {
+    const applyCode = () => {
+      const code = $("#discount-input").value;
+      if (!String(code).trim()) return;
+      if (findDiscount(code)) {
+        tally.discountCode = String(code).trim().toUpperCase();
+        save(TALLY_KEY, tally);
+        renderTally();
+      } else {
+        showToast("Code not found");
+      }
+    };
+    applyBtn.addEventListener("click", applyCode);
+    $("#discount-input").addEventListener("keydown", (e) => { if (e.key === "Enter") applyCode(); });
+  }
+  const removeBtn = $("#discount-remove");
+  if (removeBtn) {
+    removeBtn.addEventListener("click", () => {
+      tally.discountCode = "";
+      save(TALLY_KEY, tally);
+      renderTally();
+    });
+  }
 
   renderTotalBar();
+
+  if (scrollTargetId) {
+    const el = document.getElementById(scrollTargetId);
+    scrollTargetId = null;
+    if (el) requestAnimationFrame(() => el.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }
+}
+
+function advanceFrom(sectionId) {
+  const idx = catalog.sections.findIndex((s) => s.id === sectionId);
+  const next = catalog.sections.slice(idx + 1).find((s) => s.items.length);
+  expandedId = next ? next.id : null;
+  scrollTargetId = next ? "sec-" + next.id : "discount-card";
+  renderTally();
 }
 
 function incrementItem(id) {
@@ -514,25 +730,28 @@ function renderTotalBar() {
   bar.hidden = mode !== "tally";
   if (bar.hidden) return;
 
-  const lines = computeLines();
-  const total = lines.reduce((sum, l) => sum + l.price, 0);
-  $("#total-amount").textContent = fmt(total);
+  const bill = computeBill();
+  $("#total-amount").textContent = fmt(bill.total);
 
-  const count = addonCount();
-  $("#item-count").textContent = count === 0
-    ? (Number(catalog.basePrice) > 0 ? "Base hat only" : "Nothing yet")
-    : count + (count === 1 ? " enhancement" : " enhancements");
+  const count = enhancementCount();
+  const hasSingles = catalog.sections.some((s) => s.type === "single" && s.items.length);
+  $("#item-count").textContent = hasSingles && !hatChosen()
+    ? "Choose a hat"
+    : count === 0 ? "No enhancements yet" : count + (count === 1 ? " enhancement" : " enhancements");
 
   bar.classList.toggle("open", receiptOpen);
   $("#receipt").innerHTML = receiptOpen
     ? '<div class="receipt-inner">' +
-      (lines.length
-        ? lines.map((l) =>
+      (bill.lines.length
+        ? bill.lines.map((l) =>
             '<div class="receipt-line"><span class="r-name">' + esc(l.name) + '</span><span class="r-price">' + fmt(l.price) + "</span></div>"
           ).join("")
         : '<div class="receipt-line"><span class="r-name" style="color:var(--ink-soft)">Nothing on this hat yet</span></div>') +
-      (catalog.includes.length && Number(catalog.basePrice) > 0
-        ? '<div class="receipt-foot">Base includes ' + esc(includesSummary()) + ". Swaps &amp; extras are list price — never any deductions.</div>"
+      (bill.discount
+        ? '<div class="receipt-line r-discount"><span class="r-name">Discount (' + esc(bill.discount.code) + ')</span><span class="r-price">−' + fmt(bill.discount.amount) + "</span></div>"
+        : "") +
+      (catalog.includes.length && hatChosen()
+        ? '<div class="receipt-foot">Hat includes ' + esc(includesSummary()) + ". Swaps &amp; extras are list price — never any deductions.</div>"
         : "") +
       "</div>"
     : "";
@@ -542,9 +761,11 @@ function renderTotalBar() {
 
 function newHat(silent) {
   undoTally = tally;
-  tally = { items: {} };
+  tally = { selections: {}, items: {}, discountCode: "" };
   save(TALLY_KEY, tally);
   receiptOpen = false;
+  expandedId = (catalog.sections[0] || {}).id || null;
+  window.scrollTo(0, 0);
   renderTally();
   if (!silent) showToast("Cleared for the next hat", true);
 }
@@ -604,7 +825,7 @@ function openSquareSetupSheet() {
     "<b>Square Point of Sale</b> app on this phone. One-time setup:<br><br>" +
     "1. Install the Square POS app &amp; sign in to the business account.<br>" +
     '2. Create a (free) application at <b>developer.squareup.com</b> and copy its <b>Application ID</b>.<br>' +
-    "3. Paste the ID in <b>Edit Menu → Square Payments</b>.</div>" +
+    "3. Paste the ID in <b>Edit Menu → Square</b>.</div>" +
     '<div class="sheet-btns">' +
     '<button class="sheet-btn ghost" id="sheet-cancel">Close</button>' +
     '<button class="sheet-btn primary" id="sheet-goto">Open Settings</button>' +
@@ -638,11 +859,12 @@ function buildSquareUrl(totalCents, note) {
 }
 
 function charge() {
-  const total = computeTotal();
-  if (total <= 0) { showToast("Nothing to charge yet"); return; }
+  const bill = computeBill();
+  if (bill.total <= 0) { showToast("Nothing to charge yet"); return; }
   if (!catalog.squareAppId) { openSquareSetupSheet(); return; }
-  const note = computeLines().map((l) => l.name + " " + fmt(l.price)).join(", ").slice(0, 250);
-  location.href = buildSquareUrl(Math.round(total * 100), note);
+  let note = bill.lines.map((l) => l.name + " " + fmt(l.price)).join(", ");
+  if (bill.discount) note += ", Discount " + bill.discount.code + " −" + fmt(bill.discount.amount);
+  location.href = buildSquareUrl(Math.round(bill.total * 100), note.slice(0, 250));
 }
 
 // Handle the return trip from Square POS (?data={...} on the callback URL).
@@ -661,24 +883,91 @@ function charge() {
   }
 })();
 
+/* ================= Square catalog import ================= */
+
+// Reads square-catalog.json, generated in the repo by the "Sync Square catalog"
+// GitHub Action (which holds the account's access token as a repo secret —
+// the token never reaches this page). Maps Square categories to sections:
+// HAT/HATS becomes the pick-one section, everything else mix & match.
+async function importSquareCatalog() {
+  let data;
+  try {
+    const res = await fetch("square-catalog.json", { cache: "reload" });
+    if (!res.ok) throw new Error(String(res.status));
+    data = await res.json();
+  } catch (e) {
+    showToast("No synced catalog found — run the Sync Square action first (see README)");
+    return;
+  }
+  if (!Array.isArray(data.items) || !data.items.length) {
+    showToast("Synced catalog is empty");
+    return;
+  }
+  if (!confirm("Replace the menu with " + data.items.length + " items from the Square catalog? Shop settings, includes, and discounts are kept.")) return;
+
+  const titleCase = (s) => String(s).toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+  const isHatCat = (c) => /^hats?$/i.test(String(c).trim());
+  const stripPrefix = (name, cat) => {
+    const re = new RegExp("^\\s*" + cat.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\s*:\\s*", "i");
+    return String(name).replace(re, "").trim();
+  };
+
+  const hatItems = [], upgradeItems = [], otherSections = new Map();
+  for (const raw of data.items) {
+    const cat = String(raw.category || "Other").trim();
+    const item = {
+      id: uid(),
+      name: stripPrefix(raw.name, cat),
+      price: Number(raw.price) || 0,
+      variable: Number(raw.priceMax) > Number(raw.price),
+      note: "",
+      photo: raw.photo || null,
+    };
+    if (isHatCat(cat)) {
+      if (/upgrade/i.test(item.name)) upgradeItems.push(item);
+      else hatItems.push(item);
+    } else {
+      const key = titleCase(cat);
+      if (!otherSections.has(key)) otherSections.set(key, []);
+      otherSections.get(key).push(item);
+    }
+  }
+
+  const sections = [];
+  if (hatItems.length) sections.push({ id: uid(), name: "Hats", sub: "Tap to choose the hat", type: "single", items: hatItems });
+  if (upgradeItems.length) sections.push({ id: uid(), name: "Hat Upgrades", sub: "", type: "multi", items: upgradeItems });
+  for (const [name, items] of otherSections) sections.push({ id: uid(), name, sub: "", type: "multi", items });
+
+  catalog.sections = sections;
+  tally = { selections: {}, items: {}, discountCode: "" };
+  save(CATALOG_KEY, catalog);
+  save(TALLY_KEY, tally);
+  expandedId = (catalog.sections[0] || {}).id || null;
+  renderEdit();
+  showToast("Imported " + data.items.length + " items from Square" + (data.generatedAt ? " (synced " + String(data.generatedAt).slice(0, 10) + ")" : ""));
+}
+
 /* ================= Edit view ================= */
 
 function renderEdit() {
   const main = $("#main");
-  let html = '<div class="edit-hint">Changes save automatically on this phone. List prices are charged in full ' +
-    "for swaps and extras — the base price never goes down, totals only go up. " +
-    'Mark "+" on items priced like <b>$15+</b> so the exact amount is entered at the register. ' +
-    "Tap an item's circle to attach a photo from the camera roll.</div>";
+  let html = '<div class="edit-hint">Changes save automatically on this phone. Sections are either ' +
+    "<b>Pick one</b> (the hat itself — tapping an option selects it and moves on) or <b>Mix &amp; match</b> " +
+    '(steppers). Prices are charged in full — totals only ever go up. Mark "+" on items priced like <b>$15+</b> ' +
+    "so the exact amount is entered at the register. Tap an item's circle to attach a photo.</div>";
 
   html += '<h2 class="menu-head">The Shop</h2><div class="card edit-card">' +
+    '<div class="field-label">Logo</div>' +
+    '<div class="logo-edit-row"><button class="logo-edit-btn" id="logo-btn">' +
+    (catalog.logo ? '<img src="' + catalog.logo + '" alt="logo">' : "Tap to add the logo from the camera roll") +
+    "</button>" +
+    (catalog.logo ? '<button class="icon-btn danger" id="logo-clear" aria-label="Remove logo">✕</button>' : "") +
+    "</div>" +
     '<div class="field-label">Shop name</div><div class="edit-row"><input class="text-input" id="edit-shop" value="' + esc(catalog.shopName || "") + '"></div>' +
     '<div class="field-label">Tagline</div><div class="edit-row"><input class="text-input" id="edit-tagline" value="' + esc(catalog.tagline || "") + '"></div>' +
-    '<div class="field-label">Base hat</div>' +
-    '<div class="edit-row"><input class="text-input" id="edit-baselabel" value="' + esc(catalog.baseLabel || "") + '" placeholder="e.g. Women\'s Custom Hat">' +
-    '<input class="price-input" inputmode="decimal" id="edit-baseprice" value="' + (Number(catalog.basePrice) || 0) + '"></div>' +
     "</div>";
 
-  html += '<h2 class="menu-head">Included In Base</h2>' +
+  html += '<h2 class="menu-head">Included With Hat</h2>' +
     '<div class="menu-sub">Free with every hat — shown to the customer, never charged</div><div class="card"><div class="edit-card">';
   catalog.includes.forEach((inc, i) => {
     html += '<div class="opt-edit' + (i === 0 ? " first" : "") + '"><div class="edit-row">' +
@@ -690,9 +979,13 @@ function renderEdit() {
   html += '</div><button class="add-btn" id="add-inc">+ Add included item</button></div>';
 
   catalog.sections.forEach((section, si) => {
-    html += '<h2 class="menu-head">Menu Section</h2><div class="card"><div class="edit-card">';
+    html += '<h2 class="menu-head">Section</h2><div class="card"><div class="edit-card">';
     html += '<div class="edit-row">' +
       '<input class="text-input group-name-input" data-sname="' + section.id + '" value="' + esc(section.name) + '" placeholder="Section name">' +
+      '<button class="type-toggle' + (section.type === "single" ? " single" : "") + '" data-type="' + section.id + '">' +
+      (section.type === "single" ? "Pick one" : "Mix &amp; match") + "</button>" +
+      "</div>" +
+      '<div class="edit-row"><span class="spacer"></span>' +
       moveBtns("section", section.id, si, catalog.sections.length) +
       '<button class="icon-btn danger" data-del-section="' + section.id + '" aria-label="Delete section">🗑</button>' +
       "</div>";
@@ -717,12 +1010,30 @@ function renderEdit() {
     });
     html += '</div><button class="add-btn" data-add-item="' + section.id + '">+ Add item</button></div>';
   });
-  html += '<button class="add-section-btn" id="add-section">+ Add menu section</button>';
+  html += '<button class="add-section-btn" id="add-section">+ Add section</button>';
 
-  html += '<h2 class="menu-head">Square Payments</h2><div class="card edit-card">' +
-    '<div class="field-label">Square Application ID</div>' +
+  html += '<h2 class="menu-head">Discount Codes</h2>' +
+    '<div class="menu-sub">Entered at the bottom of the register — % or $ off the total</div><div class="card"><div class="edit-card">';
+  if (catalog.discounts.length) {
+    catalog.discounts.forEach((d, i) => {
+      html += '<div class="opt-edit' + (i === 0 ? " first" : "") + '"><div class="edit-row">' +
+        '<input class="text-input" style="text-transform:uppercase" data-dcode="' + d.id + '" value="' + esc(d.code) + '" placeholder="CODE" autocapitalize="characters" autocorrect="off">' +
+        '<button class="dtype-toggle" data-dtype="' + d.id + '">' + (d.type === "percent" ? "%" : "$") + "</button>" +
+        '<input class="price-input" inputmode="decimal" data-dvalue="' + d.id + '" value="' + (Number(d.value) || 0) + '">' +
+        '<button class="icon-btn danger" data-del-discount="' + d.id + '" aria-label="Delete code">✕</button>' +
+        "</div></div>";
+    });
+  } else {
+    html += '<div class="edit-hint" style="margin:0">No codes yet — add one below (e.g. FRIENDS ' + "→ 10%)" + ".</div>";
+  }
+  html += '</div><button class="add-btn" id="add-discount">+ Add discount code</button></div>';
+
+  html += '<h2 class="menu-head">Square</h2><div class="card edit-card">' +
+    '<div class="field-label">Application ID (for the Charge button)</div>' +
     '<div class="edit-row"><input class="text-input" id="square-app-id" value="' + esc(catalog.squareAppId || "") + '" placeholder="sq0idp-…" autocapitalize="off" autocorrect="off"></div>' +
-    '<div class="edit-hint" style="margin:8px 0 0">The Charge button opens the <b>Square Point of Sale</b> app with the total and an itemized note, so payment lands in the connected Square account. Get a free Application ID at <b>developer.squareup.com</b> (create an application, copy its production Application ID).</div>' +
+    '<div class="edit-hint" style="margin:8px 0 0">Charge opens the <b>Square Point of Sale</b> app with the total and an itemized note, so payment lands in the connected Square account. Get a free Application ID at <b>developer.squareup.com</b>.</div>' +
+    '<button class="import-btn" id="import-square">⟳ Import items &amp; photos from Square</button>' +
+    '<div class="edit-hint" style="margin:8px 0 0">Pulls the item library synced from the Square account by the repo\'s <b>Sync Square catalog</b> action — every item, price, and product photo. Set up once in the README, then re-run the action any time the Square library changes.</div>' +
     "</div>";
 
   html += '<div class="danger-zone"><button id="reset-catalog">Reset menu to the printed price list</button></div>';
@@ -762,7 +1073,6 @@ function wireEditHandlers() {
   };
   bindText("#edit-shop", (i) => { catalog.shopName = i.value; renderHeader(); });
   bindText("#edit-tagline", (i) => { catalog.tagline = i.value; renderHeader(); });
-  bindText("#edit-baselabel", (i) => { catalog.baseLabel = i.value; });
   bindText("#square-app-id", (i) => { catalog.squareAppId = i.value.trim(); });
   bindText("[data-incname]", (i) => {
     const inc = catalog.includes.find((x) => x.id === i.dataset.incname);
@@ -776,12 +1086,11 @@ function wireEditHandlers() {
     const { item } = findSectionItem(i.dataset.iname);
     if (item) item.name = i.value;
   });
-
-  $("#edit-baseprice").addEventListener("change", (e) => {
-    catalog.basePrice = parsePrice(e.target.value);
-    e.target.value = catalog.basePrice;
-    saveCatalog();
+  bindText("[data-dcode]", (i) => {
+    const d = catalog.discounts.find((x) => x.id === i.dataset.dcode);
+    if (d) d.code = i.value;
   });
+
   main.querySelectorAll("[data-incqty]").forEach((input) => {
     input.addEventListener("change", () => {
       const inc = catalog.includes.find((x) => x.id === input.dataset.incqty);
@@ -798,6 +1107,39 @@ function wireEditHandlers() {
       if (item) { item.price = parsePrice(input.value); input.value = item.price; saveCatalog(); }
     });
   });
+  main.querySelectorAll("[data-dvalue]").forEach((input) => {
+    input.addEventListener("change", () => {
+      const d = catalog.discounts.find((x) => x.id === input.dataset.dvalue);
+      if (d) {
+        d.value = parsePrice(input.value);
+        if (d.type === "percent" && d.value > 100) d.value = 100;
+        input.value = d.value;
+        saveCatalog();
+      }
+    });
+  });
+  main.querySelectorAll("[data-dtype]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const d = catalog.discounts.find((x) => x.id === btn.dataset.dtype);
+      if (d) {
+        d.type = d.type === "percent" ? "amount" : "percent";
+        if (d.type === "percent" && d.value > 100) d.value = 100;
+        saveCatalog(); renderEdit();
+      }
+    });
+  });
+
+  main.querySelectorAll("[data-type]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const s = catalog.sections.find((x) => x.id === btn.dataset.type);
+      if (!s) return;
+      s.type = s.type === "single" ? "multi" : "single";
+      delete tally.selections[s.id];
+      for (const item of s.items) delete tally.items[item.id];
+      saveCatalog(); save(TALLY_KEY, tally);
+      renderEdit();
+    });
+  });
 
   main.querySelectorAll("[data-var]").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -806,9 +1148,18 @@ function wireEditHandlers() {
     });
   });
 
+  $("#logo-btn").addEventListener("click", () => {
+    photoTarget = { kind: "logo" };
+    $("#photo-input").click();
+  });
+  const logoClear = $("#logo-clear");
+  if (logoClear) logoClear.addEventListener("click", () => {
+    catalog.logo = null;
+    saveCatalog(); renderHeader(); renderEdit();
+  });
   main.querySelectorAll("[data-photo]").forEach((btn) => {
     btn.addEventListener("click", () => {
-      photoTargetItemId = btn.dataset.photo;
+      photoTarget = { kind: "item", id: btn.dataset.photo };
       $("#photo-input").click();
     });
   });
@@ -825,11 +1176,18 @@ function wireEditHandlers() {
       saveCatalog(); renderEdit();
     });
   });
+  main.querySelectorAll("[data-del-discount]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      catalog.discounts = catalog.discounts.filter((x) => x.id !== btn.dataset.delDiscount);
+      saveCatalog(); renderEdit();
+    });
+  });
   main.querySelectorAll("[data-del-section]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const s = catalog.sections.find((x) => x.id === btn.dataset.delSection);
       if (s && confirm('Delete the whole "' + s.name + '" section?')) {
         for (const item of s.items) delete tally.items[item.id];
+        delete tally.selections[s.id];
         catalog.sections = catalog.sections.filter((x) => x.id !== s.id);
         saveCatalog(); save(TALLY_KEY, tally);
         renderEdit();
@@ -842,6 +1200,8 @@ function wireEditHandlers() {
       if (!section || !item) return;
       section.items = section.items.filter((i) => i.id !== item.id);
       delete tally.items[item.id];
+      const sel = tally.selections[section.id];
+      if (sel && sel.itemId === item.id) delete tally.selections[section.id];
       saveCatalog(); save(TALLY_KEY, tally);
       renderEdit();
     });
@@ -872,6 +1232,11 @@ function wireEditHandlers() {
     saveCatalog(); renderEdit();
     focusLast("[data-incname]");
   });
+  $("#add-discount").addEventListener("click", () => {
+    catalog.discounts.push({ id: uid(), code: "", type: "percent", value: 10 });
+    saveCatalog(); renderEdit();
+    focusLast("[data-dcode]");
+  });
   main.querySelectorAll("[data-add-item]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const s = catalog.sections.find((x) => x.id === btn.dataset.addItem);
@@ -882,16 +1247,19 @@ function wireEditHandlers() {
     });
   });
   $("#add-section").addEventListener("click", () => {
-    catalog.sections.push({ id: uid(), name: "", sub: "", items: [] });
+    catalog.sections.push({ id: uid(), name: "", sub: "", type: "multi", items: [] });
     saveCatalog(); renderEdit();
     focusLast("[data-sname]");
   });
 
+  $("#import-square").addEventListener("click", importSquareCatalog);
+
   $("#reset-catalog").addEventListener("click", () => {
-    if (confirm("Replace the whole menu with the printed price list defaults? Photos and the Square ID will be cleared too.")) {
+    if (confirm("Replace everything with the printed price list defaults? Photos, logo, codes, and the Square ID will be cleared too.")) {
       catalog = defaultCatalog();
-      tally = { items: {} };
+      tally = { selections: {}, items: {}, discountCode: "" };
       saveCatalog(); save(TALLY_KEY, tally);
+      expandedId = (catalog.sections[0] || {}).id || null;
       renderHeader(); renderEdit();
     }
   });
@@ -903,25 +1271,38 @@ function focusLast(selector) {
   if (last) last.focus();
 }
 
-/* ---------- Photo attach: downscale to a small square thumbnail ---------- */
+/* ---------- Photo attach ---------- */
 
 $("#photo-input").addEventListener("change", (e) => {
   const file = e.target.files && e.target.files[0];
   e.target.value = "";
-  const item = findItem(photoTargetItemId);
-  if (!file || !item) return;
+  if (!file || !photoTarget) return;
+  const target = photoTarget;
+  photoTarget = null;
   const reader = new FileReader();
   reader.onload = () => {
     const img = new Image();
     img.onload = () => {
-      const SIZE = 144;
       const canvas = document.createElement("canvas");
-      canvas.width = SIZE; canvas.height = SIZE;
       const ctx = canvas.getContext("2d");
-      const side = Math.min(img.width, img.height);
-      ctx.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, SIZE, SIZE);
-      item.photo = canvas.toDataURL("image/jpeg", 0.8);
+      if (target.kind === "logo") {
+        // Keep aspect ratio; PNG preserves wordmark transparency.
+        const scale = Math.min(1, 600 / img.width, 240 / img.height);
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        catalog.logo = canvas.toDataURL("image/png");
+      } else {
+        const item = findItem(target.id);
+        if (!item) return;
+        const SIZE = 144;
+        canvas.width = SIZE; canvas.height = SIZE;
+        const side = Math.min(img.width, img.height);
+        ctx.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, SIZE, SIZE);
+        item.photo = canvas.toDataURL("image/jpeg", 0.8);
+      }
       saveCatalog();
+      renderHeader();
       if (mode === "edit") renderEdit();
     };
     img.src = reader.result;
@@ -932,9 +1313,14 @@ $("#photo-input").addEventListener("change", (e) => {
 /* ================= Header & mode switching ================= */
 
 function renderHeader() {
-  $("#shop-name").textContent = catalog.shopName || "Hat Bar";
-  $("#shop-tagline").textContent = catalog.tagline || "";
-  $("#shop-tagline").style.display = catalog.tagline ? "" : "none";
+  const el = $("#masthead");
+  if (catalog.logo) {
+    el.innerHTML = '<img class="logo-img" src="' + catalog.logo + '" alt="' + esc(catalog.shopName || "Logo") + '">' +
+      (catalog.tagline ? '<div class="tagline">' + esc(catalog.tagline) + "</div>" : "");
+  } else {
+    el.innerHTML = '<h1 class="shop-name">' + esc(catalog.shopName || "Hat Bar") + "</h1>" +
+      (catalog.tagline ? '<div class="tagline">' + esc(catalog.tagline) + "</div>" : "");
+  }
 }
 
 function render() {
@@ -946,11 +1332,19 @@ function render() {
 
 $("#mode-btn").addEventListener("click", () => {
   if (mode === "edit") {
-    // Drop tally entries whose item was deleted while editing.
     for (const id of Object.keys(tally.items)) {
       if (!findItem(id)) delete tally.items[id];
     }
+    for (const sid of Object.keys(tally.selections)) {
+      const section = catalog.sections.find((s) => s.id === sid);
+      if (!section || section.type !== "single" || !section.items.some((i) => i.id === tally.selections[sid].itemId)) {
+        delete tally.selections[sid];
+      }
+    }
     save(TALLY_KEY, tally);
+    if (!catalog.sections.some((s) => s.id === expandedId)) {
+      expandedId = (catalog.sections[0] || {}).id || null;
+    }
   }
   mode = mode === "tally" ? "edit" : "tally";
   window.scrollTo(0, 0);

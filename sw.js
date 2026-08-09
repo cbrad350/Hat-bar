@@ -1,6 +1,6 @@
-// Cache-first service worker so the tally keeps working with no signal at the hat bar.
+// Service worker so the tally keeps working with no signal at the hat bar.
 // Bump CACHE_VERSION whenever any precached file changes.
-const CACHE_VERSION = "hatbar-v2";
+const CACHE_VERSION = "hatbar-v3";
 const PRECACHE = [
   "./",
   "./index.html",
@@ -24,18 +24,34 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+function cachePut(request, response) {
+  if (response && response.ok && new URL(request.url).origin === location.origin) {
+    const copy = response.clone();
+    caches.open(CACHE_VERSION).then((cache) => cache.put(request, copy));
+  }
+  return response;
+}
+
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
+  const url = new URL(event.request.url);
+  const isSquareSync = url.pathname.endsWith("/square-catalog.json") || url.pathname.includes("/square-photos/");
+
+  if (isSquareSync) {
+    // Network-first so a fresh sync shows up immediately; cached copy offline.
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => cachePut(event.request, response))
+        .catch(() => caches.match(event.request, { ignoreSearch: true }))
+    );
+    return;
+  }
+
+  // Everything else: cache-first for instant offline loads.
   event.respondWith(
     caches.match(event.request, { ignoreSearch: true }).then((cached) => {
       if (cached) return cached;
-      return fetch(event.request).then((response) => {
-        if (response.ok && new URL(event.request.url).origin === location.origin) {
-          const copy = response.clone();
-          caches.open(CACHE_VERSION).then((cache) => cache.put(event.request, copy));
-        }
-        return response;
-      });
+      return fetch(event.request).then((response) => cachePut(event.request, response));
     })
   );
 });

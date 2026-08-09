@@ -1,0 +1,39 @@
+name: Sync Square catalog
+
+# Pulls the Square item library (names, categories, prices, photos) into the
+# repo so the app can import it — run it from the Actions tab whenever the
+# Square catalog changes; it also refreshes weekly.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 12 * * 1"
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Fetch catalog from Square
+        env:
+          SQUARE_ACCESS_TOKEN: ${{ secrets.SQUARE_ACCESS_TOKEN }}
+        run: node scripts/sync-square.js
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add square-catalog.json square-photos
+          if git diff --cached --quiet; then
+            echo "Catalog unchanged."
+          else
+            git commit -m "Sync Square catalog"
+            git push
+          fi
