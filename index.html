@@ -430,7 +430,20 @@ function defaultCatalog() {
 function loadJSON(key) {
   try { return JSON.parse(localStorage.getItem(key)); } catch (e) { return null; }
 }
-function save(key, value) { localStorage.setItem(key, JSON.stringify(value)); }
+function save(key, value) {
+  if (key === TALLY_KEY && !$("#toast-undo").hidden) {
+    // The tally moved on — retire a stale Undo so it can't revert newer work.
+    $("#toast").classList.remove("show");
+    $("#toast-undo").hidden = true;
+  }
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (e) {
+    // Storage full or blocked: keep going in memory so the screen and the bill
+    // never diverge, and tell the owner the tally won't survive a relaunch.
+    setTimeout(() => showToast("Couldn't save — storage is full; this tally won't survive closing the app"), 0);
+  }
+}
 
 let catalog = loadJSON(CATALOG_KEY);
 if (!catalog || !Array.isArray(catalog.sections)) {
@@ -479,6 +492,14 @@ function findDiscount(code) {
 
 /* ================= Bill math ================= */
 
+// "$N+" (variable) items keep one price PER UNIT — two luxe bands can cost
+// $22 and $35. Older saved tallies only had {qty, price}; fall back to that.
+function unitPrices(entry) {
+  if (Array.isArray(entry.prices)) return entry.prices.map((p) => Number(p) || 0);
+  return Array(entry.qty || 0).fill(Number(entry.price) || 0);
+}
+function entrySum(entry) { return unitPrices(entry).reduce((sum, p) => sum + p, 0); }
+
 function computeBill() {
   const lines = [];
   for (const section of catalog.sections) {
@@ -493,7 +514,7 @@ function computeBill() {
     for (const item of section.items) {
       const entry = tally.items[item.id];
       if (entry && entry.qty > 0) {
-        lines.push({ name: item.name + (entry.qty > 1 ? " ×" + entry.qty : ""), price: entry.qty * (Number(entry.price) || 0), sid: section.id });
+        lines.push({ name: item.name + (entry.qty > 1 ? " ×" + entry.qty : ""), price: entrySum(entry), sid: section.id });
       }
     }
   }
@@ -536,7 +557,7 @@ function sectionStatus(section) {
     const entry = tally.items[item.id];
     if (entry && entry.qty > 0) {
       parts.push(item.name + (entry.qty > 1 ? " ×" + entry.qty : ""));
-      sum += entry.qty * (Number(entry.price) || 0);
+      sum += entrySum(entry);
     }
   }
   return parts.length
@@ -582,8 +603,14 @@ function renderTally() {
           const qty = entry ? entry.qty : 0;
           let priceHtml;
           if (qty > 0) {
-            priceHtml = fmt(entry.price) + " each";
-            if (item.variable) priceHtml = '<button data-editprice="' + item.id + '">' + priceHtml + " · adjust</button>";
+            if (item.variable) {
+              // One tappable price per unit — adjust any piece without touching the others.
+              priceHtml = unitPrices(entry).map((p, ui) =>
+                '<button data-editprice="' + item.id + '" data-unit="' + ui + '" aria-label="Adjust ' + esc(item.name) + ' price ' + (ui + 1) + '">' + fmt(p) + "</button>"
+              ).join(" + ") + " · adjust";
+            } else {
+              priceHtml = fmt(entry.price) + " each";
+            }
           } else {
             priceHtml = fmt(Number(item.price) || 0) + (item.variable ? "+" : "");
           }
@@ -594,9 +621,9 @@ function renderTally() {
             (item.note ? '<div class="item-note">' + esc(item.note) + "</div>" : "") +
             "</div>" +
             '<div class="stepper">' +
-            '<button class="step-btn" data-dec="' + item.id + '"' + (qty === 0 ? " disabled" : "") + ">−</button>" +
-            '<span class="qty' + (qty === 0 ? " zero" : "") + '">' + qty + "</span>" +
-            '<button class="step-btn" data-inc="' + item.id + '">+</button>' +
+            '<button class="step-btn" data-dec="' + item.id + '"' + (qty === 0 ? " disabled" : "") + ' aria-label="Remove one ' + esc(item.name) + '">−</button>' +
+            '<span class="qty' + (qty === 0 ? " zero" : "") + '" aria-label="' + qty + ' in tally">' + qty + "</span>" +
+            '<button class="step-btn" data-inc="' + item.id + '" aria-label="Add ' + esc(item.name) + '">+</button>' +
             "</div></div>";
         }
       }
@@ -663,6 +690,10 @@ function renderTally() {
       const entry = tally.items[btn.dataset.dec];
       if (!entry) return;
       entry.qty -= 1;
+      if (Array.isArray(entry.prices)) {
+        entry.prices.pop(); // "−" removes the most recently added unit
+        if (entry.prices.length) entry.price = entry.prices[0];
+      }
       if (entry.qty <= 0) delete tally.items[btn.dataset.dec];
       save(TALLY_KEY, tally);
       renderTally();
@@ -671,10 +702,15 @@ function renderTally() {
   main.querySelectorAll("[data-editprice]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const item = findItem(btn.dataset.editprice);
+      if (!item) return;
       const entry = tally.items[item.id];
-      if (!item || !entry) return;
-      openPriceSheet(item, entry.price, (price) => {
-        entry.price = price;
+      if (!entry) return;
+      const prices = unitPrices(entry);
+      const ui = Math.min(parseInt(btn.dataset.unit, 10) || 0, prices.length - 1);
+      openPriceSheet(item, prices[ui], (price) => {
+        prices[ui] = price; // reprice this unit only
+        entry.prices = prices;
+        entry.price = prices[0];
         save(TALLY_KEY, tally);
         renderTally();
       }, "Save");
@@ -736,16 +772,20 @@ function incrementItem(id) {
   const item = findItem(id);
   if (!item) return;
   const entry = tally.items[id];
-  if (entry) {
-    entry.qty += 1;
-    save(TALLY_KEY, tally);
-    renderTally();
-  } else if (item.variable) {
-    openPriceSheet(item, Number(item.price) || 0, (price) => {
-      tally.items[id] = { qty: 1, price };
+  if (item.variable) {
+    // Every "$N+" unit gets its own price — ask on every add, never assume
+    // the last piece's price.
+    const prices = entry ? unitPrices(entry) : [];
+    openPriceSheet(item, prices.length ? prices[prices.length - 1] : Number(item.price) || 0, (price) => {
+      prices.push(price);
+      tally.items[id] = { qty: prices.length, price: prices[0], prices };
       save(TALLY_KEY, tally);
       renderTally();
     });
+  } else if (entry) {
+    entry.qty += 1;
+    save(TALLY_KEY, tally);
+    renderTally();
   } else {
     tally.items[id] = { qty: 1, price: Number(item.price) || 0 };
     save(TALLY_KEY, tally);
@@ -776,6 +816,9 @@ function renderTotalBar() {
     : count === 0 ? "No enhancements yet" : count + (count === 1 ? " enhancement" : " enhancements");
 
   bar.classList.toggle("open", receiptOpen);
+  const toggle = $("#receipt-toggle");
+  toggle.setAttribute("aria-expanded", String(receiptOpen));
+  toggle.setAttribute("aria-label", receiptOpen ? "Hide itemized list" : "Show itemized list");
   $("#receipt").innerHTML = receiptOpen
     ? '<div class="receipt-inner">' +
       (bill.lines.length
@@ -821,7 +864,9 @@ function showToast(msg, withUndo) {
   $("#toast-undo").hidden = !withUndo;
   $("#toast").classList.add("show");
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => $("#toast").classList.remove("show"), 4500);
+  // Undo stays available much longer (a mis-tapped New Hat costs a whole
+  // rebuild); any tally change dismisses it early — see save().
+  toastTimer = setTimeout(() => $("#toast").classList.remove("show"), withUndo ? 15000 : 4500);
 }
 
 $("#toast-undo").addEventListener("click", () => {
@@ -836,11 +881,30 @@ $("#toast-undo").addEventListener("click", () => {
 
 /* ================= Modals ================= */
 
-function closeModal() { $("#modal-root").innerHTML = ""; }
+function closeModal() {
+  $("#modal-root").innerHTML = "";
+  document.removeEventListener("keydown", modalKeydown);
+}
+
+// Escape dismisses any sheet; Tab cycles inside it (minimal focus trap).
+function modalKeydown(e) {
+  if (e.key === "Escape") { closeModal(); return; }
+  if (e.key !== "Tab") return;
+  const focusables = $("#modal-root").querySelectorAll("button, input");
+  if (!focusables.length) return;
+  const first = focusables[0], last = focusables[focusables.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+}
+
+function openModal(html) {
+  $("#modal-root").innerHTML = html;
+  document.addEventListener("keydown", modalKeydown);
+}
 
 function openPriceSheet(item, startPrice, onSave, actionLabel) {
-  $("#modal-root").innerHTML =
-    '<div class="overlay" id="overlay"><div class="sheet">' +
+  openModal(
+    '<div class="overlay" id="overlay"><div class="sheet" role="dialog" aria-modal="true" aria-label="Price for ' + esc(item.name) + '">' +
     "<h3>" + esc(item.name) + "</h3>" +
     '<div class="sheet-sub">Priced from ' + fmt(Number(item.price) || 0) + " — enter the price for this hat.</div>" +
     '<div class="price-entry"><span class="cur">$</span>' +
@@ -848,12 +912,13 @@ function openPriceSheet(item, startPrice, onSave, actionLabel) {
     '<div class="sheet-btns">' +
     '<button class="sheet-btn ghost" id="sheet-cancel">Cancel</button>' +
     '<button class="sheet-btn primary" id="sheet-save">' + esc(actionLabel || "Add") + "</button>" +
-    "</div></div></div>";
+    "</div></div></div>"
+  );
   const input = $("#sheet-price");
   input.focus();
   input.select();
   const commit = () => {
-    const n = parseFloat(String(input.value).replace(/[^0-9.]/g, ""));
+    const n = parseFloat(normalizePriceText(input.value));
     if (isNaN(n)) { input.focus(); input.select(); return; } // blank taps don't add $0 lines
     onSave(n < 0 ? 0 : Math.round(n * 100) / 100);
     closeModal();
@@ -865,8 +930,8 @@ function openPriceSheet(item, startPrice, onSave, actionLabel) {
 }
 
 function openSquareSetupSheet() {
-  $("#modal-root").innerHTML =
-    '<div class="overlay" id="overlay"><div class="sheet">' +
+  openModal(
+    '<div class="overlay" id="overlay"><div class="sheet" role="dialog" aria-modal="true" aria-label="Connect Square">' +
     "<h3>Connect Square</h3>" +
     '<div class="sheet-sub">To take payment through Square, this app hands the total to the ' +
     "<b>Square Point of Sale</b> app on this phone. One-time setup:<br><br>" +
@@ -876,7 +941,8 @@ function openSquareSetupSheet() {
     '<div class="sheet-btns">' +
     '<button class="sheet-btn ghost" id="sheet-cancel">Close</button>' +
     '<button class="sheet-btn primary" id="sheet-goto">Open Settings</button>' +
-    "</div></div></div>";
+    "</div></div></div>"
+  );
   $("#sheet-cancel").addEventListener("click", closeModal);
   $("#overlay").addEventListener("click", (e) => { if (e.target.id === "overlay") closeModal(); });
   $("#sheet-goto").addEventListener("click", () => {
@@ -907,11 +973,51 @@ function buildSquareUrl(totalCents, note) {
 
 function charge() {
   const bill = computeBill();
-  if (bill.total <= 0) { showToast("Nothing to charge yet"); return; }
+  if (bill.total <= 0) {
+    // A 100% / big $-off code legitimately zeroes the bill — say so instead
+    // of the generic empty-tally message. $0 can't be sent to Square POS.
+    showToast(bill.discount
+      ? "Total is $0 after " + bill.discount.code + " — nothing to send to Square"
+      : "Nothing to charge yet");
+    return;
+  }
   if (!catalog.squareAppId) { openSquareSetupSheet(); return; }
+  if (tally.pendingCharge) { openPendingChargeSheet(); return; } // no accidental double-launch
   let note = bill.lines.map((l) => l.name + " " + fmt(l.price)).join(", ");
   if (bill.discount) note += ", Discount " + bill.discount.code + " −" + fmt(bill.discount.amount);
+  // Remember the hand-off BEFORE app-switching: on iPhone the success callback
+  // opens in Safari (separate storage), so this app may never hear back —
+  // openPendingChargeSheet() asks the owner on return instead.
+  tally.pendingCharge = { total: bill.total, at: Date.now() };
+  save(TALLY_KEY, tally);
   location.href = buildSquareUrl(Math.round(bill.total * 100), note.slice(0, 250));
+}
+
+// Asked when we come back from (or re-tap Charge after) a Square hand-off that
+// never confirmed. "Paid" clears for the next customer so the old tally can't
+// be re-charged or built on top of; "Not paid" keeps the tally chargeable.
+function openPendingChargeSheet() {
+  const pc = tally.pendingCharge;
+  if (!pc) return;
+  openModal(
+    '<div class="overlay" id="overlay"><div class="sheet" role="dialog" aria-modal="true" aria-label="Confirm payment">' +
+    "<h3>Did the " + fmt(Number(pc.total) || 0) + " payment finish?</h3>" +
+    '<div class="sheet-sub">This tally was handed to Square POS. If Square took the payment, clear it — charging again would bill the customer twice.</div>' +
+    '<div class="sheet-btns">' +
+    '<button class="sheet-btn ghost" id="pending-keep">Not paid — keep tally</button>' +
+    '<button class="sheet-btn primary" id="pending-paid">Paid — clear it</button>' +
+    "</div></div></div>"
+  );
+  $("#pending-paid").addEventListener("click", () => {
+    closeModal();
+    newHat(true);
+    showToast("Cleared — ready for the next hat");
+  });
+  $("#pending-keep").addEventListener("click", () => {
+    delete tally.pendingCharge;
+    save(TALLY_KEY, tally);
+    closeModal();
+  });
 }
 
 // Handle the return trip from Square POS (?data={...} on the callback URL).
@@ -923,9 +1029,11 @@ function charge() {
   history.replaceState(null, "", location.pathname);
   if (!result) return;
   if (result.status === "ok") {
-    newHat(true);
+    newHat(true); // also drops pendingCharge with the rest of the tally
     showToast("Payment recorded in Square ✓");
   } else {
+    delete tally.pendingCharge; // failed/canceled: tally stays chargeable
+    save(TALLY_KEY, tally);
     showToast("Square: " + (result.error_code || "payment not completed"));
   }
 })();
@@ -990,6 +1098,14 @@ async function importSquareCatalog() {
   save(CATALOG_KEY, catalog);
   save(TALLY_KEY, tally);
   expandedId = (catalog.sections[0] || {}).id || null;
+  // Pre-warm the service-worker cache with every synced photo now, while
+  // we're online — so going offline before a section is ever opened still
+  // shows its photos at the bar.
+  for (const s of sections) {
+    for (const it of s.items) {
+      if (it.photo && !String(it.photo).startsWith("data:")) fetch(it.photo).catch(() => {});
+    }
+  }
   renderEdit();
   showToast("Imported " + data.items.length + " items from Square" + (data.generatedAt ? " (synced " + String(data.generatedAt).slice(0, 10) + ")" : ""));
 }
@@ -1098,8 +1214,22 @@ function moveBtns(kind, ref, index, length) {
 
 function saveCatalog() { save(CATALOG_KEY, catalog); }
 
+// Free-text money input. Commas are usually thousands separators ("1,550"),
+// but "15,50" typed with a decimal comma must read as 15.50 — not 1550, a
+// 100× overcharge. Rule: a single comma NOT followed by a 3-digit group is a
+// decimal point; otherwise commas are grouping and are stripped.
+function normalizePriceText(value) {
+  let s = String(value).replace(/[^0-9.,]/g, "");
+  if (s.includes(",")) {
+    s = (s.includes(".") || /,\d{3}(?:$|[.,])/.test(s) || (s.match(/,/g) || []).length > 1)
+      ? s.replace(/,/g, "")
+      : s.replace(",", ".");
+  }
+  return s;
+}
+
 function parsePrice(value) {
-  const n = parseFloat(String(value).replace(/[^0-9.]/g, ""));
+  const n = parseFloat(normalizePriceText(value));
   return isNaN(n) || n < 0 ? 0 : Math.round(n * 100) / 100;
 }
 
@@ -1406,6 +1536,14 @@ $("#receipt-toggle").addEventListener("click", () => {
 });
 
 render();
+
+// A charge handed to Square may never call back into the standalone app
+// (iOS opens the https callback in Safari, whose storage is separate), so ask
+// on relaunch and on every return to the foreground instead of trusting it.
+if (tally.pendingCharge) openPendingChargeSheet();
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && mode === "tally" && tally.pendingCharge) openPendingChargeSheet();
+});
 
 /* ================= Offline support ================= */
 

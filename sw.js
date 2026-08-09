@@ -1,6 +1,6 @@
 // Service worker so the tally keeps working with no signal at the hat bar.
 // Bump CACHE_VERSION whenever any precached file changes.
-const CACHE_VERSION = "hatbar-v4";
+const CACHE_VERSION = "hatbar-v5";
 const PRECACHE = [
   "./",
   "./index.html",
@@ -17,12 +17,29 @@ self.addEventListener("install", (event) => {
   );
 });
 
+function isSquareSyncPath(pathname) {
+  return pathname.endsWith("/square-catalog.json") || pathname.includes("/square-photos/");
+}
+
 self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE_VERSION).map((k) => caches.delete(k))))
-      .then(() => self.clients.claim())
-  );
+  event.waitUntil((async () => {
+    // Before deleting retired caches, carry the synced Square data (catalog +
+    // product photos) forward — an app update must never wipe the offline menu.
+    const keys = await caches.keys();
+    const current = await caches.open(CACHE_VERSION);
+    for (const key of keys) {
+      if (key === CACHE_VERSION) continue;
+      const old = await caches.open(key);
+      for (const request of await old.keys()) {
+        if (isSquareSyncPath(new URL(request.url).pathname) && !(await current.match(request))) {
+          const response = await old.match(request);
+          if (response) await current.put(request, response);
+        }
+      }
+      await caches.delete(key);
+    }
+    await self.clients.claim();
+  })());
 });
 
 function cachePut(request, response) {
@@ -36,9 +53,8 @@ function cachePut(request, response) {
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
   const url = new URL(event.request.url);
-  const isSquareSync = url.pathname.endsWith("/square-catalog.json") || url.pathname.includes("/square-photos/");
 
-  if (isSquareSync) {
+  if (isSquareSyncPath(url.pathname)) {
     // Network-first so a fresh sync shows up immediately; cached copy offline.
     event.respondWith(
       fetch(event.request)

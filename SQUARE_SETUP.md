@@ -128,11 +128,14 @@ it), so the test is a real — but tiny and refundable — transaction:
 5. After Square finishes, the phone hands control back to the register page.
    **Heads-up:** if you launched Hat Bar Tally from its home-screen icon, the return
    trip opens in the **Safari browser** instead of the home-screen app (an iPhone
-   limitation — see Troubleshooting). The payment is recorded in Square either way;
-   just switch back to the register app and tap **New Hat** for the next customer.
+   limitation — see Troubleshooting). The payment is recorded in Square either way.
+   When you switch back to the register app, it asks **"Did the $X payment
+   finish?"** — tap **Paid — clear it** and it resets for the next customer
+   (tap **Not paid — keep tally** if the charge didn't go through, so you can
+   fix things and Charge again).
 
 Done. Daily flow: build the hat → Charge → take payment in Square POS → back to the
-register → New Hat.
+register → confirm "Paid — clear it".
 
 ---
 
@@ -160,10 +163,13 @@ and Safari are walled off from each other (separate storage), and Square's retur
 trip opens in Safari — so the confirmation toast appears in a Safari copy of the
 page (which may even show the default menu, since your edits live in the home-screen
 app's own storage). **The sale is safely recorded in Square regardless** — verify in
-Square POS → Transactions. Just return to the register app and tap **New Hat**
-yourself. If you want the automatic confirmation-and-reset round trip, run the
-register in Safari itself instead of from the home-screen icon; everything else
-works the same.
+Square POS → Transactions. That's exactly why the register asks **"Did the $X
+payment finish?"** whenever you come back after a Charge: answer **Paid — clear it**
+(reset for the next customer) or **Not paid — keep tally** (nothing sent, keep
+building/charging). The same guard means tapping Charge again before answering
+re-asks instead of silently sending the same total to Square twice. If you want the
+fully automatic confirmation-and-reset round trip, run the register in Safari itself
+instead of from the home-screen icon; everything else works the same.
 
 **The Sync Square catalog action fails.**
 Open the failed run in the Actions tab and read the last lines:
@@ -224,9 +230,11 @@ Honest notes where the docs and this app don't perfectly line up:
    web flow assumes the same browser that started the charge receives the callback.
    On iPhone, the callback opens in Safari, and Apple keeps Safari's storage separate
    from the home-screen app's — so the app's "Payment recorded ✓ + reset" step runs
-   in Safari, not in the register you're using. Payments are unaffected; the
-   automatic reset simply doesn't happen in the home-screen app (tap New Hat).
-   This is an iOS platform limitation, not something the app or Square can fix today.
+   in Safari, not in the register you're using. Payments are unaffected. The register
+   compensates: it remembers every hand-off and asks **"Did the $X payment finish?"**
+   when you return, so a paid tally can't linger, be built on top of, or be charged
+   twice — but it's a question, not an automatic confirmation, because iOS gives the
+   home-screen app no way to hear Square's answer today.
 2. **No sandbox = no true test mode.** Square's sandbox doesn't support the Point of
    Sale API, and the app has no practice switch — the first test charge is a real $1
    transaction (use the cash-tender dry run in Part 7).
