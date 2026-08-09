@@ -1,6 +1,6 @@
 // Cache-first service worker so the tally keeps working with no signal at the hat bar.
 // Bump CACHE_VERSION whenever any precached file changes.
-const CACHE_VERSION = "hatbar-v1";
+const CACHE_VERSION = "hatbar-v2";
 const PRECACHE = [
   "./",
   "./index.html",

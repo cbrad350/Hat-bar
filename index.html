@@ -6,24 +6,27 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Hat Bar">
-<meta name="theme-color" content="#F7F1E5">
+<meta name="theme-color" content="#CDC1B0">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <title>Hat Bar Tally</title>
 <style>
   :root {
-    --bg: #F7F1E5;
-    --card: #FFFFFF;
-    --ink: #3B2A1A;
-    --ink-soft: #8A7460;
-    --accent: #8B5E2B;
-    --accent-deep: #6E4A20;
-    --accent-soft: #F0E4D0;
-    --line: #E7DCC9;
-    --good: #3E7C4F;
-    --danger: #B04A3A;
-    --radius: 14px;
-    --shadow: 0 1px 3px rgba(59, 42, 26, 0.08);
+    --bg: #CDC1B0;            /* warm taupe, like the printed menu */
+    --card: #F6F1E7;          /* cream */
+    --card-deep: #EFE8DA;
+    --ink: #241B12;           /* espresso */
+    --ink-soft: #7C6C58;
+    --accent: #9C5B33;        /* copper, like the AUSTIN wordmark */
+    --accent-deep: #7C4425;
+    --accent-soft: #E4D6C2;
+    --line: #DDD2BF;
+    --line-deep: #B9AC97;
+    --good: #4A6B4F;
+    --danger: #A0402F;
+    --radius: 16px;
+    --serif: ui-serif, "New York", Georgia, "Times New Roman", serif;
+    --shadow: 0 2px 6px rgba(36, 27, 18, 0.10);
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; padding: 0; }
@@ -33,176 +36,232 @@
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     font-size: 16px;
     -webkit-font-smoothing: antialiased;
-    padding-bottom: calc(120px + env(safe-area-inset-bottom));
+    padding-bottom: calc(130px + env(safe-area-inset-bottom));
   }
   button { font: inherit; color: inherit; border: none; background: none; padding: 0; cursor: pointer; }
-  input { font: inherit; color: inherit; }
+  input, textarea { font: inherit; color: inherit; }
 
+  /* ---------- Header, styled like the printed menu masthead ---------- */
   header {
     position: sticky; top: 0; z-index: 20;
     background: var(--bg);
-    padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
-    display: flex; align-items: center; justify-content: space-between;
-    border-bottom: 1px solid var(--line);
+    padding: calc(10px + env(safe-area-inset-top)) 16px 8px;
+    border-bottom: 1px solid var(--line-deep);
+    display: flex; align-items: center; gap: 10px;
   }
-  header h1 { font-size: 20px; margin: 0; letter-spacing: 0.2px; }
-  header h1 .tag { color: var(--accent); }
+  .masthead { flex: 1; min-width: 0; text-align: left; }
+  .shop-name {
+    font-family: var(--serif); font-weight: 700; font-size: 21px;
+    letter-spacing: 0.22em; text-transform: uppercase; margin: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    color: var(--accent-deep);
+  }
+  .tagline {
+    font-size: 9.5px; letter-spacing: 0.32em; text-transform: uppercase;
+    color: var(--ink-soft); margin-top: 2px; white-space: nowrap; overflow: hidden;
+  }
   .header-btn {
-    font-size: 15px; font-weight: 600; color: var(--accent);
-    padding: 8px 14px; border-radius: 10px; background: var(--accent-soft);
-    min-height: 40px;
+    font-size: 14px; font-weight: 650; color: var(--accent-deep);
+    padding: 9px 14px; border-radius: 999px;
+    border: 1px solid var(--line-deep); background: var(--card);
+    min-height: 40px; flex: none;
   }
 
-  main { padding: 14px 14px 0; max-width: 560px; margin: 0 auto; }
+  main { padding: 6px 14px 0; max-width: 560px; margin: 0 auto; }
 
-  .section-title {
-    font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
-    color: var(--ink-soft); margin: 20px 6px 8px;
+  /* Menu-style centered section heading with flanking rules */
+  .menu-head {
+    display: flex; align-items: center; gap: 14px;
+    font-family: var(--serif); font-weight: 700; font-size: 16px;
+    letter-spacing: 0.24em; text-transform: uppercase; text-align: center;
+    color: var(--ink); margin: 24px 4px 10px;
   }
-  .section-title:first-child { margin-top: 4px; }
+  .menu-head::before, .menu-head::after { content: ""; flex: 1; height: 1px; background: var(--line-deep); }
+  .menu-sub {
+    text-align: center; font-size: 12.5px; color: var(--ink-soft);
+    margin: -6px 12px 10px; font-style: italic; font-family: var(--serif);
+  }
 
   .card {
     background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
-    margin-bottom: 12px; overflow: hidden;
+    margin-bottom: 14px; overflow: hidden;
   }
-  .card-head {
-    padding: 12px 14px 6px; font-weight: 700; font-size: 17px;
-    display: flex; justify-content: space-between; align-items: baseline;
-  }
-  .card-head .swap-note { font-size: 12px; font-weight: 500; color: var(--ink-soft); }
 
-  /* --- Tally: pick-one option rows --- */
-  .opt-row {
-    display: flex; align-items: center; width: 100%; text-align: left;
-    padding: 13px 14px; gap: 12px; border-top: 1px solid var(--line);
-    min-height: 52px;
-  }
-  .opt-row:first-of-type { border-top: none; }
-  .opt-check {
-    width: 24px; height: 24px; border-radius: 50%; flex: none;
-    border: 2px solid var(--line); display: flex; align-items: center; justify-content: center;
-    color: transparent; font-size: 14px; font-weight: 800; transition: all 0.12s ease;
-  }
-  .opt-row.selected .opt-check { background: var(--accent); border-color: var(--accent); color: #fff; }
-  .opt-name { flex: 1; font-size: 16px; }
-  .opt-row.selected .opt-name { font-weight: 650; }
-  .opt-price { font-size: 15px; font-weight: 600; color: var(--accent); white-space: nowrap; }
-  .opt-price.included { color: var(--ink-soft); font-weight: 500; font-size: 13px; }
+  /* ---------- Base hat card ---------- */
+  .base-card { padding: 16px; text-align: center; }
+  .base-name { font-family: var(--serif); font-size: 19px; font-weight: 700; letter-spacing: 0.04em; }
+  .base-price { font-family: var(--serif); font-size: 30px; font-weight: 700; color: var(--accent-deep); margin: 4px 0 8px; }
+  .base-includes { font-size: 13.5px; color: var(--ink-soft); line-height: 1.55; }
+  .base-includes b { color: var(--ink); font-weight: 650; }
+  .base-includes .lead { display: block; font-size: 10.5px; letter-spacing: 0.22em; text-transform: uppercase; margin-bottom: 4px; color: var(--accent); font-weight: 700; }
 
-  /* --- Tally: add-on rows with steppers --- */
-  .addon-row {
-    display: flex; align-items: center; padding: 10px 14px; gap: 10px;
-    border-top: 1px solid var(--line); min-height: 56px;
+  /* ---------- Menu item rows ---------- */
+  .item-row {
+    display: flex; align-items: center; padding: 10px 12px; gap: 12px;
+    border-top: 1px solid var(--line); min-height: 64px;
   }
-  .addon-row:first-child { border-top: none; }
-  .addon-info { flex: 1; min-width: 0; }
-  .addon-name { font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .addon-row.active .addon-name { font-weight: 650; }
-  .addon-price { font-size: 13px; color: var(--ink-soft); margin-top: 1px; }
-  .stepper { display: flex; align-items: center; gap: 2px; flex: none; }
-  .step-btn {
-    width: 42px; height: 42px; border-radius: 12px; background: var(--accent-soft);
-    color: var(--accent-deep); font-size: 22px; font-weight: 600;
+  .item-row:first-child { border-top: none; }
+  .item-row.active { background: var(--card-deep); }
+  .thumb {
+    width: 46px; height: 46px; border-radius: 50%; flex: none; overflow: hidden;
+    background: var(--accent-soft); border: 1px solid var(--line-deep);
     display: flex; align-items: center; justify-content: center;
   }
-  .step-btn:active { background: var(--line); }
-  .step-btn[disabled] { opacity: 0.35; }
-  .qty { width: 34px; text-align: center; font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
-  .qty.zero { color: var(--line); font-weight: 500; }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .thumb .mono {
+    font-family: var(--serif); font-weight: 700; font-size: 15px;
+    letter-spacing: 0.05em; color: var(--accent-deep);
+  }
+  .item-info { flex: 1; min-width: 0; }
+  .item-name { font-size: 16px; line-height: 1.25; }
+  .item-row.active .item-name { font-weight: 650; }
+  .item-price { font-size: 13px; color: var(--accent-deep); font-weight: 650; margin-top: 2px; }
+  .item-price button { color: inherit; font: inherit; text-decoration: underline; text-underline-offset: 2px; }
+  .item-note { font-size: 12px; color: var(--ink-soft); margin-top: 1px; font-style: italic; }
+  .stepper { display: flex; align-items: center; gap: 2px; flex: none; }
+  .step-btn {
+    width: 42px; height: 42px; border-radius: 50%;
+    background: var(--card); border: 1px solid var(--line-deep);
+    color: var(--accent-deep); font-size: 21px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform 0.08s ease;
+  }
+  .step-btn:active { background: var(--accent-soft); transform: scale(0.92); }
+  .step-btn[disabled] { opacity: 0.3; }
+  .qty { width: 32px; text-align: center; font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .qty.zero { color: var(--line-deep); font-weight: 500; }
 
-  /* --- Total bar --- */
+  /* ---------- Total bar ---------- */
   .total-bar {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
-    background: var(--card); border-top: 1px solid var(--line);
-    box-shadow: 0 -4px 16px rgba(59, 42, 26, 0.10);
-    padding: 10px 16px calc(12px + env(safe-area-inset-bottom));
+    background: var(--card); border-top: 1px solid var(--line-deep);
+    box-shadow: 0 -6px 20px rgba(36, 27, 18, 0.16);
+    padding: 10px 14px calc(12px + env(safe-area-inset-bottom));
     max-width: 560px; margin: 0 auto;
   }
-  @media (min-width: 560px) { .total-bar { border-radius: 16px 16px 0 0; } }
+  @media (min-width: 560px) { .total-bar { border-radius: 18px 18px 0 0; } }
   .receipt { max-height: 0; overflow: hidden; transition: max-height 0.25s ease; }
   .total-bar.open .receipt { max-height: 45vh; overflow-y: auto; }
   .receipt-inner { padding: 4px 2px 10px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
-  .receipt-line { display: flex; justify-content: space-between; padding: 5px 0; font-size: 15px; gap: 12px; }
-  .receipt-line .r-name { color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .receipt-line { display: flex; justify-content: space-between; padding: 4px 0; font-size: 15px; gap: 12px; }
+  .receipt-line .r-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .receipt-line .r-price { font-variant-numeric: tabular-nums; font-weight: 600; }
-  .receipt-empty { color: var(--ink-soft); font-size: 14px; padding: 6px 0 4px; }
-  .total-main { display: flex; align-items: center; gap: 12px; }
-  .total-label-wrap { flex: 1; text-align: left; }
-  .total-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-soft); display: flex; align-items: center; gap: 6px; }
-  .chevron { display: inline-block; transition: transform 0.2s ease; font-size: 11px; }
+  .receipt-foot { font-size: 12px; color: var(--ink-soft); padding-top: 7px; line-height: 1.5; font-style: italic; }
+  .total-main { display: flex; align-items: center; gap: 8px; }
+  .total-label-wrap { flex: 1; text-align: left; min-width: 0; }
+  .total-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: var(--ink-soft); display: flex; align-items: center; gap: 6px; }
+  .chevron { display: inline-block; transition: transform 0.2s ease; font-size: 10px; }
   .total-bar.open .chevron { transform: rotate(180deg); }
-  .total-amount { font-size: 30px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.15; }
+  .total-amount { font-family: var(--serif); font-size: 29px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
   .new-hat-btn {
-    background: var(--accent); color: #fff; font-weight: 700; font-size: 16px;
-    padding: 13px 20px; border-radius: 13px; flex: none; min-height: 50px;
+    border: 1.5px solid var(--line-deep); color: var(--ink-soft); font-weight: 650; font-size: 13.5px;
+    padding: 12px 13px; border-radius: 13px; flex: none; min-height: 48px;
   }
-  .new-hat-btn:active { background: var(--accent-deep); }
+  .charge-btn {
+    background: var(--accent); color: #fff; font-weight: 700; font-size: 16px;
+    padding: 13px 20px; border-radius: 13px; flex: none; min-height: 48px;
+    letter-spacing: 0.02em;
+  }
+  .charge-btn:active { background: var(--accent-deep); }
 
-  /* --- Toast --- */
+  /* ---------- Toast ---------- */
   .toast {
     position: fixed; left: 50%; transform: translateX(-50%);
-    bottom: calc(120px + env(safe-area-inset-bottom));
-    background: var(--ink); color: #fff; border-radius: 12px;
+    bottom: calc(130px + env(safe-area-inset-bottom));
+    background: var(--ink); color: #F6F1E7; border-radius: 12px;
     padding: 11px 16px; font-size: 15px; display: flex; gap: 16px; align-items: center;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25); z-index: 40;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3); z-index: 60;
     opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
-    white-space: nowrap;
+    max-width: 92vw;
   }
   .toast.show { opacity: 1; pointer-events: auto; }
-  .toast button { color: #F5C97B; font-weight: 700; }
+  .toast button { color: #E8B77D; font-weight: 700; flex: none; }
 
-  /* --- Edit view --- */
+  /* ---------- Modal (variable price / square setup) ---------- */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(36, 27, 18, 0.45); z-index: 50;
+    display: flex; align-items: center; justify-content: center; padding: 24px;
+  }
+  .sheet {
+    background: var(--card); border-radius: 18px; padding: 20px;
+    width: 100%; max-width: 360px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+  }
+  .sheet h3 { font-family: var(--serif); margin: 0 0 4px; font-size: 19px; letter-spacing: 0.02em; }
+  .sheet .sheet-sub { font-size: 13.5px; color: var(--ink-soft); margin-bottom: 14px; line-height: 1.5; }
+  .price-entry { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+  .price-entry .cur { font-family: var(--serif); font-size: 24px; font-weight: 700; color: var(--accent-deep); }
+  .price-entry input {
+    flex: 1; font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums;
+    border: 1.5px solid var(--line-deep); border-radius: 12px; padding: 8px 14px;
+    background: #FDFBF6; width: 100%; min-height: 54px;
+  }
+  .sheet-btns { display: flex; gap: 10px; }
+  .sheet-btn { flex: 1; padding: 13px; border-radius: 12px; font-weight: 700; font-size: 16px; min-height: 50px; }
+  .sheet-btn.primary { background: var(--accent); color: #fff; }
+  .sheet-btn.ghost { border: 1.5px solid var(--line-deep); color: var(--ink-soft); }
+
+  /* ---------- Edit view ---------- */
   .edit-card { padding: 12px 14px; }
   .edit-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
   .edit-row:last-child { margin-bottom: 0; }
   .opt-edit { border-top: 1px solid var(--line); padding-top: 10px; margin-top: 10px; }
+  .opt-edit.first { border-top: none; margin-top: 0; padding-top: 0; }
   .opt-edit .edit-row { margin-bottom: 0; }
   .edit-subrow { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
   .price-lbl { font-size: 13px; color: var(--ink-soft); font-weight: 600; white-space: nowrap; }
-  .price-lbl.muted { font-weight: 500; font-style: italic; }
   .spacer { flex: 1; }
   .text-input, .price-input {
-    border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
-    background: #FDFBF7; font-size: 16px; min-height: 44px; width: 100%;
+    border: 1px solid var(--line-deep); border-radius: 10px; padding: 10px 12px;
+    background: #FDFBF6; font-size: 16px; min-height: 44px; width: 100%;
   }
   .text-input:focus, .price-input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
-  .price-input { width: 86px; flex: none; text-align: right; font-variant-numeric: tabular-nums; }
-  .price-input:disabled { color: var(--ink-soft); background: var(--accent-soft); border-color: transparent; }
+  .price-input { width: 82px; flex: none; text-align: right; font-variant-numeric: tabular-nums; }
   .group-name-input { font-weight: 700; }
-  .inc-toggle {
-    flex: none; font-size: 11px; font-weight: 700; letter-spacing: 0.03em;
-    padding: 0 10px; min-height: 44px; border-radius: 10px;
-    border: 1.5px solid var(--line); color: var(--ink-soft); background: #fff;
-  }
-  .inc-toggle.on { background: var(--good); border-color: var(--good); color: #fff; }
   .icon-btn {
     width: 40px; height: 44px; flex: none; display: flex; align-items: center; justify-content: center;
     border-radius: 10px; color: var(--ink-soft); font-size: 17px;
   }
   .icon-btn:active { background: var(--accent-soft); }
   .icon-btn.danger { color: var(--danger); }
+  .var-toggle {
+    flex: none; font-size: 15px; font-weight: 800; min-width: 44px; min-height: 44px;
+    border-radius: 10px; border: 1.5px solid var(--line-deep); color: var(--ink-soft); background: var(--card);
+  }
+  .var-toggle.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .thumb-edit { position: relative; flex: none; }
+  .thumb-edit .thumb { width: 44px; height: 44px; }
+  .thumb-clear {
+    position: absolute; top: -6px; right: -6px; width: 20px; height: 20px;
+    border-radius: 50%; background: var(--danger); color: #fff; font-size: 11px;
+    display: flex; align-items: center; justify-content: center; font-weight: 700;
+  }
+  .inc-qty-input { width: 62px; flex: none; text-align: center; }
   .add-btn {
     display: block; width: 100%; text-align: center; padding: 12px;
-    color: var(--accent); font-weight: 700; font-size: 15px;
+    color: var(--accent-deep); font-weight: 700; font-size: 15px;
     border-top: 1px solid var(--line); min-height: 48px;
   }
   .add-section-btn {
     display: block; width: 100%; text-align: center; padding: 14px;
     background: var(--accent-soft); color: var(--accent-deep); font-weight: 700;
-    border-radius: var(--radius); margin-bottom: 12px; min-height: 50px;
+    border-radius: var(--radius); margin-bottom: 14px; min-height: 50px;
+    border: 1px solid var(--line-deep);
   }
   .danger-zone { text-align: center; margin: 26px 0 10px; }
   .danger-zone button { color: var(--danger); font-weight: 600; font-size: 14px; padding: 10px; }
-  .edit-hint { font-size: 13px; color: var(--ink-soft); margin: 6px 6px 14px; line-height: 1.45; }
-  .base-price-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-  .base-price-row .lbl { font-weight: 650; }
-  .base-price-row .sub { font-size: 12.5px; color: var(--ink-soft); margin-top: 2px; }
+  .edit-hint { font-size: 13px; color: var(--ink-soft); margin: 10px 6px 14px; line-height: 1.5; }
+  .edit-hint a { color: var(--accent-deep); }
+  .field-label { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft); margin: 10px 2px 5px; }
+  .field-label:first-child { margin-top: 0; }
 </style>
 </head>
 <body>
 <header>
-  <h1 id="header-title">Hat Bar <span class="tag">Tally</span></h1>
-  <button class="header-btn" id="mode-btn">Edit&nbsp;Prices</button>
+  <div class="masthead">
+    <h1 class="shop-name" id="shop-name">Hat Bar</h1>
+    <div class="tagline" id="shop-tagline">Custom Hat Experience</div>
+  </div>
+  <button class="header-btn" id="mode-btn">Edit Menu</button>
 </header>
 
 <main id="main"></main>
@@ -211,58 +270,71 @@
   <div class="receipt" id="receipt"></div>
   <div class="total-main">
     <button class="total-label-wrap" id="receipt-toggle" aria-label="Show itemized list">
-      <div class="total-label"><span id="item-count">No add-ons yet</span> <span class="chevron">▲</span></div>
+      <div class="total-label"><span id="item-count">Base hat</span> <span class="chevron">▲</span></div>
       <div class="total-amount" id="total-amount">$0</div>
     </button>
-    <button class="new-hat-btn" id="new-hat-btn">New&nbsp;Hat</button>
+    <button class="new-hat-btn" id="new-hat-btn">New<br>Hat</button>
+    <button class="charge-btn" id="charge-btn">Charge</button>
   </div>
 </div>
 
-<div class="toast" id="toast"><span id="toast-msg"></span><button id="toast-undo">Undo</button></div>
+<div class="toast" id="toast"><span id="toast-msg"></span><button id="toast-undo" hidden>Undo</button></div>
+<div id="modal-root"></div>
+<input type="file" accept="image/*" id="photo-input" hidden>
 
 <script>
 "use strict";
 
-/* ---------------- Storage & sample catalog ---------------- */
+/* ================= Storage & default catalog ================= */
 
-const CATALOG_KEY = "hatbar-catalog-v1";
-const TALLY_KEY = "hatbar-tally-v1";
+const CATALOG_KEY = "hatbar-catalog-v2";
+const TALLY_KEY = "hatbar-tally-v2";
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2));
 
-// Sample catalog — every name and price is editable in the app. "included" options
-// are what comes free with the hat; upgrades only ever ADD to the total.
-function sampleCatalog() {
+// Real menu. Base price includes an allowance of standard adornments; everything
+// below is charged at full list price — swaps and extras only ever ADD (no deducts).
+// "variable" items are the "$15+" style prices: the price is a starting point and
+// the actual amount is entered when the item is added to a hat.
+function defaultCatalog() {
+  const item = (name, price, extra) => Object.assign({ id: uid(), name, price, variable: false, note: "", photo: null }, extra || {});
   return {
-    basePrice: 0,
-    groups: [
-      {
-        id: uid(), name: "Hat Band",
-        options: [
-          { id: uid(), name: "Grosgrain Ribbon", price: 0, included: true },
-          { id: uid(), name: "Leather Band", price: 10, included: false },
-          { id: uid(), name: "Braided Horsehair", price: 18, included: false },
-          { id: uid(), name: "Silk Scarf Wrap", price: 25, included: false },
-        ],
-      },
-      {
-        id: uid(), name: "Branding / Burning",
-        options: [
-          { id: uid(), name: "Simple Burn Design", price: 0, included: true },
-          { id: uid(), name: "Custom Design", price: 15, included: false },
-          { id: uid(), name: "Full Custom Artwork", price: 40, included: false },
-        ],
-      },
+    shopName: "Hat Bar",
+    tagline: "Custom Hat Experience",
+    baseLabel: "Women's Custom Hat",
+    basePrice: 185,
+    squareAppId: "",
+    includes: [
+      { id: uid(), name: "Signature Bands", qty: 3 },
+      { id: uid(), name: "Feathers (Signature or Pompas)", qty: 3 },
+      { id: uid(), name: "Small Pin", qty: 1 },
+      { id: uid(), name: "Burnt-In Brand", qty: 1 },
     ],
-    addons: [
-      { id: uid(), name: "Feather", price: 5 },
-      { id: uid(), name: "Premium Feather", price: 12 },
-      { id: uid(), name: "Playing Card", price: 3 },
-      { id: uid(), name: "Matchstick", price: 2 },
-      { id: uid(), name: "Bullet Casing", price: 4 },
-      { id: uid(), name: "Dried Flowers", price: 8 },
-      { id: uid(), name: "Charm / Pin", price: 6 },
-      { id: uid(), name: "Name Embossing", price: 15 },
+    sections: [
+      {
+        id: uid(), name: "Hat Upgrades", sub: "",
+        items: [item("Premium Hat Collection", 40, { variable: true, note: "Select premium styles & expanded sizes" })],
+      },
+      {
+        id: uid(), name: "Feathers", sub: "",
+        items: [item("Signature Feather", 2), item("Pompas Grass", 2), item("Luxe Feather", 6)],
+      },
+      {
+        id: uid(), name: "Bands", sub: "",
+        items: [
+          item("Signature Band", 3), item("Vegan Leather Band", 8), item("Leather Cord", 8),
+          item("Barbed Wire", 8), item("Leather Band", 12), item("Scarf", 15),
+          item("Luxe Band", 15, { variable: true }),
+        ],
+      },
+      {
+        id: uid(), name: "Details", sub: "",
+        items: [
+          item("Playing Cards", 2), item("Custom Brand", 2), item("Small Pin", 3),
+          item("Large Pin", 5), item("Agate Beads", 5), item("Chain", 5, { variable: true }),
+          item("Bullet Pin", 8), item("Bullet Feather Holder", 12),
+        ],
+      },
     ],
   };
 }
@@ -273,21 +345,24 @@ function loadJSON(key) {
 function save(key, value) { localStorage.setItem(key, JSON.stringify(value)); }
 
 let catalog = loadJSON(CATALOG_KEY);
-if (!catalog || !Array.isArray(catalog.groups) || !Array.isArray(catalog.addons)) {
-  catalog = sampleCatalog();
+if (!catalog || !Array.isArray(catalog.sections)) {
+  catalog = defaultCatalog();
   save(CATALOG_KEY, catalog);
 }
 
-// tally: { selections: { [groupId]: optionId | null }, quantities: { [addonId]: number } }
-let tally = loadJSON(TALLY_KEY) || { selections: {}, quantities: {} };
-let mode = "tally"; // "tally" | "edit"
+// tally.items: { [itemId]: { qty, price } } — price is the unit price actually
+// charged (list price, or the amount entered for a variable-priced item).
+let tally = loadJSON(TALLY_KEY) || { items: {} };
+if (!tally.items) tally = { items: {} };
+
+let mode = "tally";
 let receiptOpen = false;
 let undoTally = null;
 let toastTimer = null;
+let photoTargetItemId = null;
 
 const $ = (sel) => document.querySelector(sel);
-
-/* ---------------- Helpers ---------------- */
+const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 function fmt(n) {
   const v = Math.round(n * 100) / 100;
@@ -296,142 +371,142 @@ function fmt(n) {
     : "$" + v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function includedOption(group) {
-  return group.options.find((o) => o.included) || null;
+function allItems() {
+  return catalog.sections.flatMap((s) => s.items);
 }
-
-// The option currently on the hat for a group: an explicit pick, else whatever's included.
-function selectedOption(group) {
-  const selId = tally.selections[group.id];
-  if (selId) {
-    const opt = group.options.find((o) => o.id === selId);
-    if (opt) return opt;
-  }
-  return includedOption(group);
+function findItem(id) {
+  return allItems().find((i) => i.id === id) || null;
 }
-
-function optionCharge(opt) {
-  return opt && !opt.included ? Number(opt.price) || 0 : 0;
+function monogram(name) {
+  const words = String(name).trim().split(/\s+/).filter(Boolean);
+  return (words.length >= 2 ? words[0][0] + words[1][0] : (words[0] || "?").slice(0, 2)).toUpperCase();
 }
 
 function computeLines() {
   const lines = [];
-  if (Number(catalog.basePrice) > 0) {
-    lines.push({ name: "Base Hat", price: Number(catalog.basePrice) });
-  }
-  for (const group of catalog.groups) {
-    const opt = selectedOption(group);
-    const charge = optionCharge(opt);
-    if (opt && charge > 0) lines.push({ name: group.name + " — " + opt.name, price: charge });
-  }
-  for (const addon of catalog.addons) {
-    const qty = tally.quantities[addon.id] || 0;
-    if (qty > 0) {
+  if (Number(catalog.basePrice) > 0) lines.push({ name: catalog.baseLabel || "Base Hat", price: Number(catalog.basePrice) });
+  for (const item of allItems()) {
+    const entry = tally.items[item.id];
+    if (entry && entry.qty > 0) {
       lines.push({
-        name: addon.name + (qty > 1 ? " ×" + qty : ""),
-        price: (Number(addon.price) || 0) * qty,
+        name: item.name + (entry.qty > 1 ? " ×" + entry.qty : ""),
+        price: entry.qty * (Number(entry.price) || 0),
       });
     }
   }
   return lines;
 }
-
-function upchargeCount() {
-  let count = 0;
-  for (const group of catalog.groups) {
-    if (optionCharge(selectedOption(group)) > 0) count++;
-  }
-  for (const addon of catalog.addons) count += tally.quantities[addon.id] || 0;
-  return count;
+function computeTotal() {
+  return computeLines().reduce((sum, l) => sum + l.price, 0);
+}
+function addonCount() {
+  return Object.values(tally.items).reduce((n, e) => n + (e.qty || 0), 0);
+}
+function includesSummary() {
+  return catalog.includes.map((inc) => (inc.qty > 1 ? inc.qty + "× " : "") + inc.name).join(", ");
 }
 
-const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+/* ================= Tally view ================= */
 
-/* ---------------- Tally view ---------------- */
+function thumbHTML(item) {
+  return '<span class="thumb">' +
+    (item.photo ? '<img src="' + item.photo + '" alt="">' : '<span class="mono">' + esc(monogram(item.name)) + "</span>") +
+    "</span>";
+}
 
 function renderTally() {
   const main = $("#main");
   let html = "";
 
-  if (catalog.groups.length) {
-    html += '<div class="section-title">Included — swap to upgrade</div>';
-    for (const group of catalog.groups) {
-      const current = selectedOption(group);
-      html += '<div class="card"><div class="card-head"><span>' + esc(group.name) + "</span>";
-      html += '<span class="swap-note">pick one</span></div>';
-      for (const opt of group.options) {
-        const isSel = current && current.id === opt.id;
-        const priceLabel = opt.included
-          ? '<span class="opt-price included">Included</span>'
-          : '<span class="opt-price">+' + fmt(Number(opt.price) || 0) + "</span>";
-        html +=
-          '<button class="opt-row' + (isSel ? " selected" : "") + '" data-group="' + group.id + '" data-opt="' + opt.id + '">' +
-          '<span class="opt-check">✓</span>' +
-          '<span class="opt-name">' + esc(opt.name) + "</span>" +
-          priceLabel +
-          "</button>";
-      }
-      html += "</div>";
-    }
-  }
+  html += '<div class="card base-card" style="margin-top:12px">' +
+    '<div class="base-name">' + esc(catalog.baseLabel || "Custom Hat") + "</div>" +
+    '<div class="base-price">' + fmt(Number(catalog.basePrice) || 0) + "</div>" +
+    '<div class="base-includes"><span class="lead">Includes</span>' +
+    catalog.includes.map((inc) => "<b>" + (inc.qty > 1 ? inc.qty + " " : "") + esc(inc.name) + "</b>").join('<span style="color:var(--line-deep)"> · </span>') +
+    "</div></div>";
 
-  if (catalog.addons.length) {
-    html += '<div class="section-title">Add-Ons — mix &amp; match</div><div class="card">';
-    for (const addon of catalog.addons) {
-      const qty = tally.quantities[addon.id] || 0;
+  for (const section of catalog.sections) {
+    if (!section.items.length) continue;
+    html += '<h2 class="menu-head">' + esc(section.name) + "</h2>";
+    if (section.sub) html += '<div class="menu-sub">' + esc(section.sub) + "</div>";
+    html += '<div class="card">';
+    for (const item of section.items) {
+      const entry = tally.items[item.id];
+      const qty = entry ? entry.qty : 0;
+      const listPrice = Number(item.price) || 0;
+      let priceHtml;
+      if (qty > 0) {
+        priceHtml = fmt(entry.price) + " each";
+        if (item.variable) priceHtml = '<button data-editprice="' + item.id + '">' + priceHtml + " · adjust</button>";
+      } else {
+        priceHtml = fmt(listPrice) + (item.variable ? "+" : "");
+      }
       html +=
-        '<div class="addon-row' + (qty > 0 ? " active" : "") + '">' +
-        '<div class="addon-info"><div class="addon-name">' + esc(addon.name) + "</div>" +
-        '<div class="addon-price">+' + fmt(Number(addon.price) || 0) + " each</div></div>" +
+        '<div class="item-row' + (qty > 0 ? " active" : "") + '">' +
+        thumbHTML(item) +
+        '<div class="item-info"><div class="item-name">' + esc(item.name) + "</div>" +
+        '<div class="item-price">' + priceHtml + "</div>" +
+        (item.note ? '<div class="item-note">' + esc(item.note) + "</div>" : "") +
+        "</div>" +
         '<div class="stepper">' +
-        '<button class="step-btn" data-dec="' + addon.id + '"' + (qty === 0 ? " disabled" : "") + ">−</button>" +
+        '<button class="step-btn" data-dec="' + item.id + '"' + (qty === 0 ? " disabled" : "") + ">−</button>" +
         '<span class="qty' + (qty === 0 ? " zero" : "") + '">' + qty + "</span>" +
-        '<button class="step-btn" data-inc="' + addon.id + '">+</button>' +
+        '<button class="step-btn" data-inc="' + item.id + '">+</button>' +
         "</div></div>";
     }
     html += "</div>";
   }
 
-  if (!catalog.groups.length && !catalog.addons.length) {
-    html += '<div class="edit-hint">No menu yet — tap "Edit Prices" to set up categories and add-ons.</div>';
-  }
-
   main.innerHTML = html;
 
-  main.querySelectorAll(".opt-row").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const group = catalog.groups.find((g) => g.id === btn.dataset.group);
-      if (!group) return;
-      const current = selectedOption(group);
-      // Tapping the already-selected upgrade puts the included item back on.
-      if (current && current.id === btn.dataset.opt && !current.included) {
-        delete tally.selections[group.id];
-      } else {
-        tally.selections[group.id] = btn.dataset.opt;
-      }
-      save(TALLY_KEY, tally);
-      renderTally();
-    });
-  });
   main.querySelectorAll("[data-inc]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const id = btn.dataset.inc;
-      tally.quantities[id] = (tally.quantities[id] || 0) + 1;
-      save(TALLY_KEY, tally);
-      renderTally();
-    });
+    btn.addEventListener("click", () => incrementItem(btn.dataset.inc));
   });
   main.querySelectorAll("[data-dec]").forEach((btn) => {
     btn.addEventListener("click", () => {
-      const id = btn.dataset.dec;
-      tally.quantities[id] = Math.max(0, (tally.quantities[id] || 0) - 1);
-      if (!tally.quantities[id]) delete tally.quantities[id];
+      const entry = tally.items[btn.dataset.dec];
+      if (!entry) return;
+      entry.qty -= 1;
+      if (entry.qty <= 0) delete tally.items[btn.dataset.dec];
       save(TALLY_KEY, tally);
       renderTally();
+    });
+  });
+  main.querySelectorAll("[data-editprice]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const item = findItem(btn.dataset.editprice);
+      const entry = tally.items[item.id];
+      if (!item || !entry) return;
+      openPriceSheet(item, entry.price, (price) => {
+        entry.price = price;
+        save(TALLY_KEY, tally);
+        renderTally();
+      });
     });
   });
 
   renderTotalBar();
+}
+
+function incrementItem(id) {
+  const item = findItem(id);
+  if (!item) return;
+  const entry = tally.items[id];
+  if (entry) {
+    entry.qty += 1;
+    save(TALLY_KEY, tally);
+    renderTally();
+  } else if (item.variable) {
+    openPriceSheet(item, Number(item.price) || 0, (price) => {
+      tally.items[id] = { qty: 1, price };
+      save(TALLY_KEY, tally);
+      renderTally();
+    });
+  } else {
+    tally.items[id] = { qty: 1, price: Number(item.price) || 0 };
+    save(TALLY_KEY, tally);
+    renderTally();
+  }
 }
 
 function renderTotalBar() {
@@ -443,9 +518,10 @@ function renderTotalBar() {
   const total = lines.reduce((sum, l) => sum + l.price, 0);
   $("#total-amount").textContent = fmt(total);
 
-  const count = upchargeCount();
-  $("#item-count").textContent =
-    count === 0 ? "Included only" : count + (count === 1 ? " upcharge" : " upcharges");
+  const count = addonCount();
+  $("#item-count").textContent = count === 0
+    ? (Number(catalog.basePrice) > 0 ? "Base hat only" : "Nothing yet")
+    : count + (count === 1 ? " enhancement" : " enhancements");
 
   bar.classList.toggle("open", receiptOpen);
   $("#receipt").innerHTML = receiptOpen
@@ -454,25 +530,31 @@ function renderTotalBar() {
         ? lines.map((l) =>
             '<div class="receipt-line"><span class="r-name">' + esc(l.name) + '</span><span class="r-price">' + fmt(l.price) + "</span></div>"
           ).join("")
-        : '<div class="receipt-empty">Nothing extra on this hat yet — included picks are free.</div>') +
+        : '<div class="receipt-line"><span class="r-name" style="color:var(--ink-soft)">Nothing on this hat yet</span></div>') +
+      (catalog.includes.length && Number(catalog.basePrice) > 0
+        ? '<div class="receipt-foot">Base includes ' + esc(includesSummary()) + ". Swaps &amp; extras are list price — never any deductions.</div>"
+        : "") +
       "</div>"
     : "";
 }
 
-function newHat() {
+/* ================= New hat / toast ================= */
+
+function newHat(silent) {
   undoTally = tally;
-  tally = { selections: {}, quantities: {} };
+  tally = { items: {} };
   save(TALLY_KEY, tally);
   receiptOpen = false;
   renderTally();
-  showToast("Cleared for the next hat");
+  if (!silent) showToast("Cleared for the next hat", true);
 }
 
-function showToast(msg) {
+function showToast(msg, withUndo) {
   $("#toast-msg").textContent = msg;
+  $("#toast-undo").hidden = !withUndo;
   $("#toast").classList.add("show");
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => $("#toast").classList.remove("show"), 4000);
+  toastTimer = setTimeout(() => $("#toast").classList.remove("show"), 4500);
 }
 
 $("#toast-undo").addEventListener("click", () => {
@@ -485,68 +567,165 @@ $("#toast-undo").addEventListener("click", () => {
   $("#toast").classList.remove("show");
 });
 
-/* ---------------- Edit view ---------------- */
+/* ================= Modals ================= */
+
+function closeModal() { $("#modal-root").innerHTML = ""; }
+
+function openPriceSheet(item, startPrice, onSave) {
+  $("#modal-root").innerHTML =
+    '<div class="overlay" id="overlay"><div class="sheet">' +
+    "<h3>" + esc(item.name) + "</h3>" +
+    '<div class="sheet-sub">Priced from ' + fmt(Number(item.price) || 0) + " — enter the price for this hat.</div>" +
+    '<div class="price-entry"><span class="cur">$</span>' +
+    '<input id="sheet-price" inputmode="decimal" value="' + (Number(startPrice) || 0) + '"></div>' +
+    '<div class="sheet-btns">' +
+    '<button class="sheet-btn ghost" id="sheet-cancel">Cancel</button>' +
+    '<button class="sheet-btn primary" id="sheet-save">Add</button>' +
+    "</div></div></div>";
+  const input = $("#sheet-price");
+  input.focus();
+  input.select();
+  const commit = () => {
+    const n = parseFloat(String(input.value).replace(/[^0-9.]/g, ""));
+    onSave(isNaN(n) || n < 0 ? 0 : Math.round(n * 100) / 100);
+    closeModal();
+  };
+  $("#sheet-save").addEventListener("click", commit);
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter") commit(); });
+  $("#sheet-cancel").addEventListener("click", closeModal);
+  $("#overlay").addEventListener("click", (e) => { if (e.target.id === "overlay") closeModal(); });
+}
+
+function openSquareSetupSheet() {
+  $("#modal-root").innerHTML =
+    '<div class="overlay" id="overlay"><div class="sheet">' +
+    "<h3>Connect Square</h3>" +
+    '<div class="sheet-sub">To take payment through Square, this app hands the total to the ' +
+    "<b>Square Point of Sale</b> app on this phone. One-time setup:<br><br>" +
+    "1. Install the Square POS app &amp; sign in to the business account.<br>" +
+    '2. Create a (free) application at <b>developer.squareup.com</b> and copy its <b>Application ID</b>.<br>' +
+    "3. Paste the ID in <b>Edit Menu → Square Payments</b>.</div>" +
+    '<div class="sheet-btns">' +
+    '<button class="sheet-btn ghost" id="sheet-cancel">Close</button>' +
+    '<button class="sheet-btn primary" id="sheet-goto">Open Settings</button>' +
+    "</div></div></div>";
+  $("#sheet-cancel").addEventListener("click", closeModal);
+  $("#overlay").addEventListener("click", (e) => { if (e.target.id === "overlay") closeModal(); });
+  $("#sheet-goto").addEventListener("click", () => {
+    closeModal();
+    mode = "edit";
+    render();
+    const el = $("#square-app-id");
+    if (el) { el.scrollIntoView({ block: "center" }); el.focus(); }
+  });
+}
+
+/* ================= Square Point of Sale hand-off ================= */
+
+function buildSquareUrl(totalCents, note) {
+  const data = {
+    amount_money: { amount: totalCents, currency_code: "USD" },
+    callback_url: location.protocol.startsWith("http") ? location.origin + location.pathname : "https://squareup.com",
+    client_id: catalog.squareAppId,
+    version: "1.3",
+    notes: note,
+    options: {
+      supported_tender_types: ["CREDIT_CARD", "CASH", "OTHER", "SQUARE_GIFT_CARD", "CARD_ON_FILE"],
+      auto_return: true,
+    },
+  };
+  return "square-commerce-v1://payment/create?data=" + encodeURIComponent(JSON.stringify(data));
+}
+
+function charge() {
+  const total = computeTotal();
+  if (total <= 0) { showToast("Nothing to charge yet"); return; }
+  if (!catalog.squareAppId) { openSquareSetupSheet(); return; }
+  const note = computeLines().map((l) => l.name + " " + fmt(l.price)).join(", ").slice(0, 250);
+  location.href = buildSquareUrl(Math.round(total * 100), note);
+}
+
+// Handle the return trip from Square POS (?data={...} on the callback URL).
+(function handleSquareCallback() {
+  const params = new URLSearchParams(location.search);
+  if (!params.has("data")) return;
+  let result = null;
+  try { result = JSON.parse(params.get("data")); } catch (e) { /* not Square's payload */ }
+  history.replaceState(null, "", location.pathname);
+  if (!result) return;
+  if (result.status === "ok") {
+    newHat(true);
+    showToast("Payment recorded in Square ✓");
+  } else {
+    showToast("Square: " + (result.error_code || "payment not completed"));
+  }
+})();
+
+/* ================= Edit view ================= */
 
 function renderEdit() {
   const main = $("#main");
-  let html = '<div class="edit-hint">Changes save automatically. Mark one option per category as ' +
-    '<b>INCL</b> — that\'s what comes free with the hat; everything else is an upcharge. ' +
-    "There are never any deductions, only add-ons.</div>";
+  let html = '<div class="edit-hint">Changes save automatically on this phone. List prices are charged in full ' +
+    "for swaps and extras — the base price never goes down, totals only go up. " +
+    'Mark "+" on items priced like <b>$15+</b> so the exact amount is entered at the register. ' +
+    "Tap an item's circle to attach a photo from the camera roll.</div>";
 
-  html += '<div class="section-title">Base price (optional)</div>' +
-    '<div class="card edit-card"><div class="base-price-row">' +
-    '<div><div class="lbl">Base hat price</div><div class="sub">Leave at 0 to tally upcharges only</div></div>' +
-    '<input class="price-input" inputmode="decimal" id="base-price" value="' + (Number(catalog.basePrice) || 0) + '">' +
-    "</div></div>";
+  html += '<h2 class="menu-head">The Shop</h2><div class="card edit-card">' +
+    '<div class="field-label">Shop name</div><div class="edit-row"><input class="text-input" id="edit-shop" value="' + esc(catalog.shopName || "") + '"></div>' +
+    '<div class="field-label">Tagline</div><div class="edit-row"><input class="text-input" id="edit-tagline" value="' + esc(catalog.tagline || "") + '"></div>' +
+    '<div class="field-label">Base hat</div>' +
+    '<div class="edit-row"><input class="text-input" id="edit-baselabel" value="' + esc(catalog.baseLabel || "") + '" placeholder="e.g. Women\'s Custom Hat">' +
+    '<input class="price-input" inputmode="decimal" id="edit-baseprice" value="' + (Number(catalog.basePrice) || 0) + '"></div>' +
+    "</div>";
 
-  html += '<div class="section-title">Pick-one categories</div>';
-  catalog.groups.forEach((group, gi) => {
-    html += '<div class="card"><div class="edit-card">';
-    html += '<div class="edit-row">' +
-      '<input class="text-input group-name-input" data-gname="' + group.id + '" value="' + esc(group.name) + '" placeholder="Category name">' +
-      moveBtns("group", group.id, gi, catalog.groups.length) +
-      '<button class="icon-btn danger" data-del-group="' + group.id + '" aria-label="Delete category">🗑</button>' +
-      "</div>";
-    group.options.forEach((opt, oi) => {
-      const ref = group.id + ":" + opt.id;
-      html += '<div class="opt-edit"><div class="edit-row">' +
-        '<button class="inc-toggle' + (opt.included ? " on" : "") + '" data-inc-toggle="' + ref + '">INCL</button>' +
-        '<input class="text-input" data-oname="' + ref + '" value="' + esc(opt.name) + '" placeholder="Option name">' +
-        '<button class="icon-btn danger" data-del-opt="' + ref + '" aria-label="Delete option">✕</button>' +
-        "</div>" +
-        '<div class="edit-subrow">' +
-        (opt.included
-          ? '<span class="price-lbl muted">Included with hat — no charge</span>'
-          : '<span class="price-lbl">Upcharge&nbsp;$</span>' +
-            '<input class="price-input" inputmode="decimal" data-oprice="' + ref + '" value="' + (Number(opt.price) || 0) + '">') +
-        '<span class="spacer"></span>' +
-        moveBtns("opt", ref, oi, group.options.length) +
-        "</div></div>";
-    });
-    html += '</div><button class="add-btn" data-add-opt="' + group.id + '">+ Add option</button></div>';
+  html += '<h2 class="menu-head">Included In Base</h2>' +
+    '<div class="menu-sub">Free with every hat — shown to the customer, never charged</div><div class="card"><div class="edit-card">';
+  catalog.includes.forEach((inc, i) => {
+    html += '<div class="opt-edit' + (i === 0 ? " first" : "") + '"><div class="edit-row">' +
+      '<input class="price-input inc-qty-input" inputmode="numeric" data-incqty="' + inc.id + '" value="' + (Number(inc.qty) || 1) + '">' +
+      '<input class="text-input" data-incname="' + inc.id + '" value="' + esc(inc.name) + '" placeholder="Included item">' +
+      '<button class="icon-btn danger" data-del-inc="' + inc.id + '" aria-label="Remove">✕</button>' +
+      "</div></div>";
   });
-  html += '<button class="add-section-btn" id="add-group">+ Add pick-one category</button>';
+  html += '</div><button class="add-btn" id="add-inc">+ Add included item</button></div>';
 
-  html += '<div class="section-title">Add-ons</div>';
-  if (catalog.addons.length) {
-    html += '<div class="card"><div class="edit-card">';
-    catalog.addons.forEach((addon, ai) => {
-      html += '<div class="opt-edit"' + (ai === 0 ? ' style="border-top:none;margin-top:0;padding-top:0"' : "") + '><div class="edit-row">' +
-        '<input class="text-input" data-aname="' + addon.id + '" value="' + esc(addon.name) + '" placeholder="Add-on name">' +
-        '<button class="icon-btn danger" data-del-addon="' + addon.id + '" aria-label="Delete add-on">✕</button>' +
+  catalog.sections.forEach((section, si) => {
+    html += '<h2 class="menu-head">Menu Section</h2><div class="card"><div class="edit-card">';
+    html += '<div class="edit-row">' +
+      '<input class="text-input group-name-input" data-sname="' + section.id + '" value="' + esc(section.name) + '" placeholder="Section name">' +
+      moveBtns("section", section.id, si, catalog.sections.length) +
+      '<button class="icon-btn danger" data-del-section="' + section.id + '" aria-label="Delete section">🗑</button>' +
+      "</div>";
+    section.items.forEach((item, ii) => {
+      const ref = section.id + ":" + item.id;
+      html += '<div class="opt-edit"><div class="edit-row">' +
+        '<span class="thumb-edit"><button class="thumb" data-photo="' + item.id + '" aria-label="Set photo">' +
+        (item.photo ? '<img src="' + item.photo + '" alt="">' : '<span class="mono">' + esc(monogram(item.name)) + "</span>") +
+        "</button>" +
+        (item.photo ? '<button class="thumb-clear" data-photo-clear="' + item.id + '" aria-label="Remove photo">✕</button>' : "") +
+        "</span>" +
+        '<input class="text-input" data-iname="' + ref + '" value="' + esc(item.name) + '" placeholder="Item name">' +
+        '<button class="icon-btn danger" data-del-item="' + ref + '" aria-label="Delete item">✕</button>' +
         "</div>" +
         '<div class="edit-subrow">' +
-        '<span class="price-lbl">Price&nbsp;$&nbsp;each</span>' +
-        '<input class="price-input" inputmode="decimal" data-aprice="' + addon.id + '" value="' + (Number(addon.price) || 0) + '">' +
+        '<span class="price-lbl">$</span>' +
+        '<input class="price-input" inputmode="decimal" data-iprice="' + ref + '" value="' + (Number(item.price) || 0) + '">' +
+        '<button class="var-toggle' + (item.variable ? " on" : "") + '" data-var="' + ref + '" aria-label="Variable price">+</button>' +
         '<span class="spacer"></span>' +
-        moveBtns("addon", addon.id, ai, catalog.addons.length) +
+        moveBtns("item", ref, ii, section.items.length) +
         "</div></div>";
     });
-    html += "</div></div>";
-  }
-  html += '<button class="add-section-btn" id="add-addon">+ Add add-on</button>';
+    html += '</div><button class="add-btn" data-add-item="' + section.id + '">+ Add item</button></div>';
+  });
+  html += '<button class="add-section-btn" id="add-section">+ Add menu section</button>';
 
-  html += '<div class="danger-zone"><button id="reset-catalog">Reset menu to sample catalog</button></div>';
+  html += '<h2 class="menu-head">Square Payments</h2><div class="card edit-card">' +
+    '<div class="field-label">Square Application ID</div>' +
+    '<div class="edit-row"><input class="text-input" id="square-app-id" value="' + esc(catalog.squareAppId || "") + '" placeholder="sq0idp-…" autocapitalize="off" autocorrect="off"></div>' +
+    '<div class="edit-hint" style="margin:8px 0 0">The Charge button opens the <b>Square Point of Sale</b> app with the total and an itemized note, so payment lands in the connected Square account. Get a free Application ID at <b>developer.squareup.com</b> (create an application, copy its production Application ID).</div>' +
+    "</div>";
+
+  html += '<div class="danger-zone"><button id="reset-catalog">Reset menu to the printed price list</button></div>';
 
   main.innerHTML = html;
   wireEditHandlers();
@@ -554,8 +733,8 @@ function renderEdit() {
 
 function moveBtns(kind, ref, index, length) {
   return (
-    '<button class="icon-btn" data-move="' + kind + ":" + ref + ':-1"' + (index === 0 ? " disabled" : "") + ' aria-label="Move up">▲</button>' +
-    '<button class="icon-btn" data-move="' + kind + ":" + ref + ':1"' + (index === length - 1 ? " disabled" : "") + ' aria-label="Move down">▼</button>'
+    '<button class="icon-btn" data-move="' + kind + "|" + ref + '|-1"' + (index === 0 ? " disabled" : "") + ' aria-label="Move up">▲</button>' +
+    '<button class="icon-btn" data-move="' + kind + "|" + ref + '|1"' + (index === length - 1 ? " disabled" : "") + ' aria-label="Move down">▼</button>'
   );
 }
 
@@ -566,92 +745,103 @@ function parsePrice(value) {
   return isNaN(n) || n < 0 ? 0 : Math.round(n * 100) / 100;
 }
 
-function findGroupOpt(ref) {
-  const [gid, oid] = ref.split(":");
-  const group = catalog.groups.find((g) => g.id === gid);
-  const opt = group && group.options.find((o) => o.id === oid);
-  return { group, opt };
+function findSectionItem(ref) {
+  const [sid, iid] = ref.split(":");
+  const section = catalog.sections.find((s) => s.id === sid);
+  const item = section && section.items.find((i) => i.id === iid);
+  return { section, item };
 }
 
 function wireEditHandlers() {
   const main = $("#main");
 
-  const basePrice = $("#base-price");
-  basePrice.addEventListener("change", () => {
-    catalog.basePrice = parsePrice(basePrice.value);
-    basePrice.value = catalog.basePrice;
+  const bindText = (sel, apply) => {
+    main.querySelectorAll(sel).forEach((input) => {
+      input.addEventListener("input", () => { apply(input); saveCatalog(); });
+    });
+  };
+  bindText("#edit-shop", (i) => { catalog.shopName = i.value; renderHeader(); });
+  bindText("#edit-tagline", (i) => { catalog.tagline = i.value; renderHeader(); });
+  bindText("#edit-baselabel", (i) => { catalog.baseLabel = i.value; });
+  bindText("#square-app-id", (i) => { catalog.squareAppId = i.value.trim(); });
+  bindText("[data-incname]", (i) => {
+    const inc = catalog.includes.find((x) => x.id === i.dataset.incname);
+    if (inc) inc.name = i.value;
+  });
+  bindText("[data-sname]", (i) => {
+    const s = catalog.sections.find((x) => x.id === i.dataset.sname);
+    if (s) s.name = i.value;
+  });
+  bindText("[data-iname]", (i) => {
+    const { item } = findSectionItem(i.dataset.iname);
+    if (item) item.name = i.value;
+  });
+
+  $("#edit-baseprice").addEventListener("change", (e) => {
+    catalog.basePrice = parsePrice(e.target.value);
+    e.target.value = catalog.basePrice;
     saveCatalog();
   });
-
-  // Text/price inputs update state in place — no re-render, so typing keeps focus.
-  main.querySelectorAll("[data-gname]").forEach((input) => {
-    input.addEventListener("input", () => {
-      const group = catalog.groups.find((g) => g.id === input.dataset.gname);
-      if (group) { group.name = input.value; saveCatalog(); }
-    });
-  });
-  main.querySelectorAll("[data-oname]").forEach((input) => {
-    input.addEventListener("input", () => {
-      const { opt } = findGroupOpt(input.dataset.oname);
-      if (opt) { opt.name = input.value; saveCatalog(); }
-    });
-  });
-  main.querySelectorAll("[data-oprice]").forEach((input) => {
+  main.querySelectorAll("[data-incqty]").forEach((input) => {
     input.addEventListener("change", () => {
-      const { opt } = findGroupOpt(input.dataset.oprice);
-      if (opt) { opt.price = parsePrice(input.value); input.value = opt.price; saveCatalog(); }
+      const inc = catalog.includes.find((x) => x.id === input.dataset.incqty);
+      if (inc) {
+        inc.qty = Math.max(1, Math.round(parsePrice(input.value)) || 1);
+        input.value = inc.qty;
+        saveCatalog();
+      }
     });
   });
-  main.querySelectorAll("[data-aname]").forEach((input) => {
-    input.addEventListener("input", () => {
-      const addon = catalog.addons.find((a) => a.id === input.dataset.aname);
-      if (addon) { addon.name = input.value; saveCatalog(); }
-    });
-  });
-  main.querySelectorAll("[data-aprice]").forEach((input) => {
+  main.querySelectorAll("[data-iprice]").forEach((input) => {
     input.addEventListener("change", () => {
-      const addon = catalog.addons.find((a) => a.id === input.dataset.aprice);
-      if (addon) { addon.price = parsePrice(input.value); input.value = addon.price; saveCatalog(); }
+      const { item } = findSectionItem(input.dataset.iprice);
+      if (item) { item.price = parsePrice(input.value); input.value = item.price; saveCatalog(); }
     });
   });
 
-  main.querySelectorAll("[data-inc-toggle]").forEach((btn) => {
+  main.querySelectorAll("[data-var]").forEach((btn) => {
     btn.addEventListener("click", () => {
-      const { group, opt } = findGroupOpt(btn.dataset.incToggle);
-      if (!group || !opt) return;
-      const turningOn = !opt.included;
-      group.options.forEach((o) => (o.included = false));
-      if (turningOn) { opt.included = true; opt.price = 0; }
-      saveCatalog();
-      renderEdit();
+      const { item } = findSectionItem(btn.dataset.var);
+      if (item) { item.variable = !item.variable; saveCatalog(); renderEdit(); }
     });
   });
 
-  main.querySelectorAll("[data-del-group]").forEach((btn) => {
+  main.querySelectorAll("[data-photo]").forEach((btn) => {
     btn.addEventListener("click", () => {
-      const group = catalog.groups.find((g) => g.id === btn.dataset.delGroup);
-      if (group && confirm('Delete the whole "' + group.name + '" category?')) {
-        catalog.groups = catalog.groups.filter((g) => g.id !== group.id);
-        delete tally.selections[group.id];
+      photoTargetItemId = btn.dataset.photo;
+      $("#photo-input").click();
+    });
+  });
+  main.querySelectorAll("[data-photo-clear]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const item = findItem(btn.dataset.photoClear);
+      if (item) { item.photo = null; saveCatalog(); renderEdit(); }
+    });
+  });
+
+  main.querySelectorAll("[data-del-inc]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      catalog.includes = catalog.includes.filter((x) => x.id !== btn.dataset.delInc);
+      saveCatalog(); renderEdit();
+    });
+  });
+  main.querySelectorAll("[data-del-section]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const s = catalog.sections.find((x) => x.id === btn.dataset.delSection);
+      if (s && confirm('Delete the whole "' + s.name + '" section?')) {
+        for (const item of s.items) delete tally.items[item.id];
+        catalog.sections = catalog.sections.filter((x) => x.id !== s.id);
         saveCatalog(); save(TALLY_KEY, tally);
         renderEdit();
       }
     });
   });
-  main.querySelectorAll("[data-del-opt]").forEach((btn) => {
+  main.querySelectorAll("[data-del-item]").forEach((btn) => {
     btn.addEventListener("click", () => {
-      const { group, opt } = findGroupOpt(btn.dataset.delOpt);
-      if (!group || !opt) return;
-      group.options = group.options.filter((o) => o.id !== opt.id);
-      if (tally.selections[group.id] === opt.id) delete tally.selections[group.id];
-      saveCatalog(); save(TALLY_KEY, tally);
-      renderEdit();
-    });
-  });
-  main.querySelectorAll("[data-del-addon]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      catalog.addons = catalog.addons.filter((a) => a.id !== btn.dataset.delAddon);
-      delete tally.quantities[btn.dataset.delAddon];
+      const { section, item } = findSectionItem(btn.dataset.delItem);
+      if (!section || !item) return;
+      section.items = section.items.filter((i) => i.id !== item.id);
+      delete tally.items[item.id];
       saveCatalog(); save(TALLY_KEY, tally);
       renderEdit();
     });
@@ -659,86 +849,106 @@ function wireEditHandlers() {
 
   main.querySelectorAll("[data-move]").forEach((btn) => {
     btn.addEventListener("click", () => {
-      const parts = btn.dataset.move.split(":");
-      const dir = parseInt(parts[parts.length - 1], 10);
-      const kind = parts[0];
-      let list;
-      let id;
-      if (kind === "group") { list = catalog.groups; id = parts[1]; }
-      else if (kind === "addon") { list = catalog.addons; id = parts[1]; }
+      const [kind, ref, dirStr] = btn.dataset.move.split("|");
+      const dir = parseInt(dirStr, 10);
+      let list, id;
+      if (kind === "section") { list = catalog.sections; id = ref; }
       else {
-        const group = catalog.groups.find((g) => g.id === parts[1]);
-        list = group ? group.options : null; id = parts[2];
+        const { section, item } = findSectionItem(ref);
+        list = section ? section.items : null;
+        id = item ? item.id : null;
       }
       if (!list) return;
       const i = list.findIndex((x) => x.id === id);
       const j = i + dir;
       if (i < 0 || j < 0 || j >= list.length) return;
       [list[i], list[j]] = [list[j], list[i]];
-      saveCatalog();
-      renderEdit();
+      saveCatalog(); renderEdit();
     });
   });
 
-  main.querySelectorAll("[data-add-opt]").forEach((btn) => {
+  $("#add-inc").addEventListener("click", () => {
+    catalog.includes.push({ id: uid(), name: "", qty: 1 });
+    saveCatalog(); renderEdit();
+    focusLast("[data-incname]");
+  });
+  main.querySelectorAll("[data-add-item]").forEach((btn) => {
     btn.addEventListener("click", () => {
-      const group = catalog.groups.find((g) => g.id === btn.dataset.addOpt);
-      if (!group) return;
-      group.options.push({ id: uid(), name: "", price: 0, included: false });
-      saveCatalog();
-      renderEdit();
-      focusLastInput('[data-oname^="' + group.id + '"]');
+      const s = catalog.sections.find((x) => x.id === btn.dataset.addItem);
+      if (!s) return;
+      s.items.push({ id: uid(), name: "", price: 0, variable: false, note: "", photo: null });
+      saveCatalog(); renderEdit();
+      focusLast('[data-iname^="' + s.id + '"]');
     });
   });
-  $("#add-group").addEventListener("click", () => {
-    const group = { id: uid(), name: "", options: [{ id: uid(), name: "", price: 0, included: true }] };
-    catalog.groups.push(group);
-    saveCatalog();
-    renderEdit();
-    focusLastInput("[data-gname]");
-  });
-  $("#add-addon").addEventListener("click", () => {
-    catalog.addons.push({ id: uid(), name: "", price: 0 });
-    saveCatalog();
-    renderEdit();
-    focusLastInput("[data-aname]");
+  $("#add-section").addEventListener("click", () => {
+    catalog.sections.push({ id: uid(), name: "", sub: "", items: [] });
+    saveCatalog(); renderEdit();
+    focusLast("[data-sname]");
   });
 
   $("#reset-catalog").addEventListener("click", () => {
-    if (confirm("Replace the whole menu with the sample catalog? This can't be undone.")) {
-      catalog = sampleCatalog();
-      tally = { selections: {}, quantities: {} };
+    if (confirm("Replace the whole menu with the printed price list defaults? Photos and the Square ID will be cleared too.")) {
+      catalog = defaultCatalog();
+      tally = { items: {} };
       saveCatalog(); save(TALLY_KEY, tally);
-      renderEdit();
+      renderHeader(); renderEdit();
     }
   });
 }
 
-function focusLastInput(selector) {
+function focusLast(selector) {
   const inputs = document.querySelectorAll(selector);
   const last = inputs[inputs.length - 1];
   if (last) last.focus();
 }
 
-/* ---------------- Mode switching ---------------- */
+/* ---------- Photo attach: downscale to a small square thumbnail ---------- */
+
+$("#photo-input").addEventListener("change", (e) => {
+  const file = e.target.files && e.target.files[0];
+  e.target.value = "";
+  const item = findItem(photoTargetItemId);
+  if (!file || !item) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      const SIZE = 144;
+      const canvas = document.createElement("canvas");
+      canvas.width = SIZE; canvas.height = SIZE;
+      const ctx = canvas.getContext("2d");
+      const side = Math.min(img.width, img.height);
+      ctx.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, SIZE, SIZE);
+      item.photo = canvas.toDataURL("image/jpeg", 0.8);
+      saveCatalog();
+      if (mode === "edit") renderEdit();
+    };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+});
+
+/* ================= Header & mode switching ================= */
+
+function renderHeader() {
+  $("#shop-name").textContent = catalog.shopName || "Hat Bar";
+  $("#shop-tagline").textContent = catalog.tagline || "";
+  $("#shop-tagline").style.display = catalog.tagline ? "" : "none";
+}
 
 function render() {
-  $("#mode-btn").textContent = mode === "tally" ? "Edit Prices" : "Done";
-  $("#header-title").innerHTML = mode === "tally"
-    ? 'Hat Bar <span class="tag">Tally</span>'
-    : 'Hat Bar <span class="tag">Menu</span>';
+  renderHeader();
+  $("#mode-btn").textContent = mode === "tally" ? "Edit Menu" : "Done";
   if (mode === "tally") renderTally();
   else { $("#total-bar").hidden = true; renderEdit(); }
 }
 
 $("#mode-btn").addEventListener("click", () => {
-  // Leaving edit mode: drop tally picks that no longer resolve to a real option.
   if (mode === "edit") {
-    for (const gid of Object.keys(tally.selections)) {
-      const group = catalog.groups.find((g) => g.id === gid);
-      if (!group || !group.options.some((o) => o.id === tally.selections[gid])) {
-        delete tally.selections[gid];
-      }
+    // Drop tally entries whose item was deleted while editing.
+    for (const id of Object.keys(tally.items)) {
+      if (!findItem(id)) delete tally.items[id];
     }
     save(TALLY_KEY, tally);
   }
@@ -747,7 +957,8 @@ $("#mode-btn").addEventListener("click", () => {
   render();
 });
 
-$("#new-hat-btn").addEventListener("click", newHat);
+$("#new-hat-btn").addEventListener("click", () => newHat(false));
+$("#charge-btn").addEventListener("click", charge);
 $("#receipt-toggle").addEventListener("click", () => {
   receiptOpen = !receiptOpen;
   renderTotalBar();
@@ -755,7 +966,7 @@ $("#receipt-toggle").addEventListener("click", () => {
 
 render();
 
-/* ---------------- Offline support ---------------- */
+/* ================= Offline support ================= */
 
 if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
   window.addEventListener("load", () => navigator.serviceWorker.register("sw.js"));

@@ -1,47 +1,71 @@
 # Hat Bar Tally 🤠
 
-A phone-first upcharge calculator for a custom hat bar. Ring up a hat's adornments in
-seconds while the customer mixes and matches — included items are free, upgrades and
-add-ons only ever **add** to the total (no deductions for skipping something).
+A phone-first register for a custom hat bar, styled after the printed menu. Ring up a
+hat's enhancements in seconds while the customer mixes and matches, then hand the total
+straight to **Square Point of Sale** for payment.
 
-## How it works
+## The pricing model
 
-**Tally screen** (day-to-day use):
+- The **base hat** (default: Women's Custom Hat, **$185**) includes an allowance shown
+  right on the tally: *3 signature bands, 3 feathers (signature or pompas), 1 small
+  pin, 1 burnt-in brand*.
+- Everything on the enhancements menu is charged at **full list price** — swaps and
+  extras only ever **add** to the total. Skipping an included item never deducts
+  anything.
+- Items priced like **$15+** (Luxe Band, Chain, Premium Hat Collection) are
+  *variable-priced*: tapping **+** asks for the exact price for that hat, which can be
+  adjusted later from the item row.
 
-- **Pick-one categories** (e.g. *Hat Band*, *Branding*) — the included option is
-  pre-selected and free. Tap an upgrade to swap it in and its upcharge joins the total.
-  Tap the selected upgrade again to put the included item back.
-- **Add-ons** (feathers, playing cards, charms…) — tap **+** / **−** to stack as many
-  as the customer wants; each has a per-item price.
-- The **total bar** stays pinned to the bottom. Tap it to see the itemized list, and
-  tap **New Hat** to clear everything for the next customer (with an Undo in case of
-  a mis-tap).
+## Using it
 
-**Edit Prices screen** (setup): tap *Edit Prices* to rename anything, change prices,
-add or remove categories/options/add-ons, reorder them, mark which option is included
-(INCL), and optionally set a base hat price to fold into the total. Changes save
-automatically on the device. The menu ships with sample hat-bar items — replace them
-with the real offerings.
+**Tally screen:** the menu ships pre-loaded from the printed price list (Feathers,
+Bands, Details, Hat Upgrades). Tap **+ / −** to stack enhancements; the pinned bar shows
+the running total — tap it for an itemized receipt (including the "base includes" note
+for the customer). **New Hat** clears for the next customer (with Undo).
+**Charge** sends the total to Square.
 
-Everything is stored locally on the phone (no account, no server), and a service
-worker keeps the app working with zero signal once it has loaded once.
+**Edit Menu screen:** rename the shop, base hat, and any section or item; change
+prices; add/remove/reorder everything; adjust the included-allowance list; toggle the
+**+** flag for variable pricing; and **tap an item's circle to attach a product photo**
+from the camera roll (photos are stored on the phone, shown as thumbnails on the menu).
+Changes save automatically to the device — no account or server.
+
+## Square payments
+
+The **Charge** button uses Square's [Point of Sale API](https://developer.squareup.com/docs/pos-api/what-it-does)
+app-switch: it opens the Square POS app on the same phone with the exact total and an
+itemized note, payment is taken there (tap-to-pay, reader, cash…), and the sale lands
+in the connected Square account. When Square hands control back, the app marks the hat
+paid and clears for the next customer.
+
+One-time setup:
+
+1. Install the **Square Point of Sale** app on the iPhone and sign in to the business
+   Square account.
+2. At [developer.squareup.com](https://developer.squareup.com) create a (free)
+   application and copy its **production Application ID** (`sq0idp-…`).
+3. In the tally app: **Edit Menu → Square Payments**, paste the ID.
+
+Note: a static app can't call Square's server APIs (that would expose the account's
+secret key), so item photos aren't pulled from the Square catalog automatically —
+attach them from the camera roll instead, and take payment through the POS app-switch
+above, which needs no secret at all.
 
 ## Putting it on an iPhone
 
-1. Host the app somewhere with HTTPS. The zero-cost route is **GitHub Pages**:
-   in this repo go to **Settings → Pages**, set *Source* to "Deploy from a branch",
-   pick `main` and `/ (root)`, and save. After a minute the app is live at
-   `https://<your-username>.github.io/Hat-bar/`.
+1. Host with HTTPS — the zero-cost route is **GitHub Pages**: repo **Settings →
+   Pages**, *Source*: "Deploy from a branch", branch `main`, folder `/ (root)`.
+   The app goes live at `https://<username>.github.io/Hat-bar/`.
 2. Open that URL in **Safari** on the iPhone.
-3. Tap the **Share** button → **Add to Home Screen** → **Add**.
+3. **Share → Add to Home Screen → Add.**
 
-It now launches full-screen from its own hat icon like a native app, and keeps
-working offline. (Prices live in that phone's browser storage, so set the menu up
-on the phone she'll actually use at the bar.)
+It launches full-screen from its own hat icon and keeps working offline. Menu edits,
+photos, and the Square ID live in that phone's storage, so set everything up on the
+phone used at the bar.
 
 ## Development
 
-No build step — it's a single static page. To try it locally:
+No build step — a single static page. Try it locally:
 
 ```sh
 python3 -m http.server 8000
@@ -50,7 +74,7 @@ python3 -m http.server 8000
 
 | File | Purpose |
 | --- | --- |
-| `index.html` | The whole app: UI, styles, tally + menu-editing logic |
+| `index.html` | The whole app: UI, styles, tally/menu/photo/Square logic |
 | `manifest.json` | PWA manifest (name, icons, standalone display) |
 | `sw.js` | Service worker for offline caching (bump `CACHE_VERSION` when files change) |
 | `icons/` | Home-screen / favicon images |
