@@ -1,0 +1,48 @@
+name: Deploy to GitHub Pages
+
+# Publishes the register app at https://<owner>.github.io/Hat-bar/.
+# `enablement: true` asks GitHub to turn Pages on the first time this runs, so
+# nobody has to visit Settings → Pages by hand. Re-deploys on every push to main
+# (including the Sync Square catalog robot's commits, so a fresh sync goes live).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  # A catalog sync commits with the built-in token, and such pushes deliberately
+  # don't fire `push` workflows — so chain off the sync run itself instead.
+  workflow_run:
+    workflows: ["Sync Square catalog"]
+    types: [completed]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never run two deploys at once; let a newer one supersede a queued older one.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Upload site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
