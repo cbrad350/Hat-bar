@@ -20,6 +20,31 @@ this app — Square handles all payment processing.
 
 ---
 
+## Part 0 — Publish the register (do this first)
+
+Square needs to know the register's web address before the Charge button will
+work, so put the app online before touching Square.
+
+1. **If the repo is private**, GitHub Pages needs a paid plan: **Settings →
+   Billing and licensing → Plans** → upgrade to **GitHub Pro** (about $4/month).
+   *(Alternative: make the repo public — Pages is free for public repos. The
+   Square access token stays encrypted either way; only the app code and the
+   synced item names/prices/photos would become visible.)*
+2. Repo **Settings → Pages** → under **Build and deployment**, set *Source* to
+   **GitHub Actions**. Save.
+   This click cannot be automated — GitHub refuses to let a workflow token
+   create the Pages site.
+3. Go to the **Actions** tab → **Deploy to GitHub Pages** → **Run workflow**.
+   (It also runs automatically on every push to `main`.) When it goes green, the
+   register is live at:
+
+   ```
+   https://YOUR-GITHUB-USERNAME.github.io/Hat-bar/
+   ```
+
+4. Open that address in a browser to confirm the hat menu appears. Keep the URL
+   handy — Part 3 registers it with Square, and Part 6 opens it on the phone.
+
 ## Part 1 — Create your (free) Square developer application
 
 1. On a computer, go to **https://developer.squareup.com** and click **Sign in**
