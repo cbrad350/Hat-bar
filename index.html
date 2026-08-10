@@ -331,6 +331,40 @@
   .danger-zone button { color: var(--danger); font-weight: 600; font-size: 14px; padding: 10px; }
   .edit-hint { font-size: 13px; color: var(--ink-soft); margin: 10px 6px 14px; line-height: 1.5; }
   .edit-hint b { color: var(--ink); }
+  /* --- Hat picker: photo grid grouped by price tier --- */
+  .tier-head {
+    display: flex; align-items: baseline; gap: 8px;
+    padding: 12px 14px 2px; font-family: var(--serif); font-weight: 700;
+    font-size: 15px; letter-spacing: 0.1em; color: var(--accent-deep);
+    border-top: 1px solid var(--line);
+  }
+  .includes-banner + .tier-head, .sec-body > .tier-head:first-child { border-top: none; }
+  .tier-count { font-family: inherit; font-size: 11px; font-weight: 500; letter-spacing: 0.06em; color: var(--ink-soft); text-transform: uppercase; }
+  .pick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 8px 12px 12px; }
+  .pick-card {
+    display: flex; flex-direction: column; align-items: stretch; text-align: left;
+    border-radius: 13px; overflow: hidden; background: var(--card);
+    border: 1.5px solid var(--line); padding-bottom: 8px;
+  }
+  .pick-card.active { border-color: var(--accent); background: var(--card-deep); }
+  .pick-photo {
+    position: relative; display: block; width: 100%; aspect-ratio: 1 / 1;
+    background: var(--accent-soft); overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .pick-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .pick-photo .mono { font-family: var(--serif); font-weight: 700; font-size: 24px; color: var(--accent-deep); }
+  .pick-tick {
+    position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; border-radius: 50%;
+    background: rgba(255, 255, 255, 0.85); border: 1.5px solid var(--line-deep);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 800; color: transparent;
+  }
+  .pick-card.active .pick-tick { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .pick-label { font-size: 13px; line-height: 1.25; padding: 8px 10px 0; }
+  .pick-card.active .pick-label { font-weight: 650; }
+  .pick-cost { font-size: 13px; font-weight: 700; color: var(--accent-deep); padding: 3px 10px 0; }
+
   .link-btn {
     flex: 1; text-align: left; font-size: 13px; line-height: 1.35; padding: 9px 11px;
     border-radius: 10px; background: #E3EBE2; color: #35563A; border: 1px solid #C6D8C4;
@@ -668,18 +702,40 @@ function renderTally() {
       if (section.type === "single" && catalog.includes.length) {
         html += '<div class="includes-banner">Every hat includes <b>' + esc(includesSummary()) + "</b> — swaps &amp; extras below are list price, never deducted.</div>";
       }
+      if (section.type === "single") {
+        // 20 hats is a long scroll with a customer waiting, so show them as a
+        // photo grid grouped by price — which also stops the pricier tier from
+        // being buried two thirds of the way down the list.
+        const sel = tally.selections[section.id];
+        const tiers = new Map();
+        for (const item of section.items) {
+          const key = (Number(item.price) || 0) + (item.variable ? "+" : "");
+          if (!tiers.has(key)) tiers.set(key, []);
+          tiers.get(key).push(item);
+        }
+        const sorted = [...tiers.entries()].sort((a, b) => parseFloat(a[0]) - parseFloat(b[0]));
+        for (const [key, items] of sorted) {
+          if (sorted.length > 1) {
+            html += '<div class="tier-head">' + fmt(parseFloat(key)) + (key.endsWith("+") ? "+" : "") +
+              '<span class="tier-count">' + items.length + " style" + (items.length === 1 ? "" : "s") + "</span></div>";
+          }
+          html += '<div class="pick-grid">';
+          for (const item of items) {
+            const isSel = sel && sel.itemId === item.id;
+            html += '<button class="pick-card' + (isSel ? " active" : "") + '" data-pick="' + section.id + ":" + item.id + '">' +
+              '<span class="pick-photo">' +
+              (item.photo ? '<img src="' + item.photo + '" alt="" loading="lazy">' : '<span class="mono">' + esc(monogram(item.name)) + "</span>") +
+              '<span class="pick-tick">✓</span></span>' +
+              '<span class="pick-label">' + esc(item.name) + "</span>" +
+              '<span class="pick-cost">' + fmt(Number(item.price) || 0) + (item.variable ? "+" : "") + "</span>" +
+              "</button>";
+          }
+          html += "</div>";
+        }
+      }
       for (const item of section.items) {
         if (section.type === "single") {
-          const sel = tally.selections[section.id];
-          const isSel = sel && sel.itemId === item.id;
-          html += '<button class="item-row pick-row' + (isSel ? " active" : "") + '" data-pick="' + section.id + ":" + item.id + '">' +
-            thumbHTML(item) +
-            '<div class="item-info"><div class="item-name">' + esc(item.name) + "</div>" +
-            (item.note ? '<div class="item-note">' + esc(item.note) + "</div>" : "") +
-            "</div>" +
-            '<span class="pick-price">' + fmt(Number(item.price) || 0) + (item.variable ? "+" : "") + "</span>" +
-            '<span class="pick-check">✓</span>' +
-            "</button>";
+          // rendered as a grid above
         } else {
           const entry = tally.items[item.id];
           const qty = entry ? entry.qty : 0;
@@ -1301,7 +1357,17 @@ async function importSquareCatalog() {
     removed += before - sec.items.length;
   }
 
-  for (const [secName, group] of incoming) {
+  // Square hands back categories alphabetically, which would put Hats last and
+  // have the customer choose the hat after its bands. Impose the build order
+  // instead; anything unrecognised keeps its place at the end.
+  const ORDER = ["Hats", "Hat Upgrades", "Bands", "Feathers", "Details"];
+  const rank = (name) => {
+    const i = ORDER.findIndex((n) => n.toLowerCase() === name.toLowerCase());
+    return i === -1 ? ORDER.length : i;
+  };
+  const ordered = [...incoming.entries()].sort((a, b) => rank(a[0]) - rank(b[0]));
+
+  for (const [secName, group] of ordered) {
     let section = catalog.sections.find((s) => s.name.trim().toLowerCase() === secName.toLowerCase());
     if (!section) {
       section = { id: uid(), name: secName, sub: secName === "Hats" ? "Tap to choose the hat" : "", type: group.type, items: [] };
