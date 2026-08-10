@@ -1,6 +1,13 @@
-// Service worker so the tally keeps working with no signal at the hat bar.
-// Bump CACHE_VERSION whenever any precached file changes.
-const CACHE_VERSION = "hatbar-v5";
+// Keeps the register working with no signal at the bar — without ever pinning
+// the phone to a stale copy of the app.
+//
+// The first version of this file was cache-first for everything, so once the
+// page was cached the phone kept serving it forever and shipped fixes never
+// arrived. The page itself is now network-first (fresh whenever there's a
+// signal, cached copy when there isn't), and other assets are
+// stale-while-revalidate so they self-heal on the next load instead of waiting
+// for someone to remember to bump a version string.
+const CACHE_VERSION = "hatbar-v6";
 const PRECACHE = [
   "./",
   "./index.html",
@@ -19,6 +26,14 @@ self.addEventListener("install", (event) => {
 
 function isSquareSyncPath(pathname) {
   return pathname.endsWith("/square-catalog.json") || pathname.includes("/square-photos/");
+}
+
+// The page itself, however it was requested: a home-screen launch, a reload, or
+// an explicit /index.html.
+function isPageRequest(request, url) {
+  return request.mode === "navigate" ||
+    url.pathname.endsWith("/") ||
+    url.pathname.endsWith("/index.html");
 }
 
 self.addEventListener("activate", (event) => {
@@ -50,25 +65,33 @@ function cachePut(request, response) {
   return response;
 }
 
+async function networkFirst(request) {
+  try {
+    return cachePut(request, await fetch(request));
+  } catch (e) {
+    const cached = await caches.match(request, { ignoreSearch: true });
+    if (cached) return cached;
+    throw e;
+  }
+}
+
+// Serve the cached copy at once, but refresh it in the background so the next
+// load is current. Nothing here is version-pinned.
+async function staleWhileRevalidate(request) {
+  const cached = await caches.match(request, { ignoreSearch: true });
+  const fetching = fetch(request).then((r) => cachePut(request, r)).catch(() => null);
+  return cached || (await fetching) || fetch(request);
+}
+
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
   const url = new URL(event.request.url);
+  if (url.origin !== location.origin) return;
 
-  if (isSquareSyncPath(url.pathname)) {
-    // Network-first so a fresh sync shows up immediately; cached copy offline.
-    event.respondWith(
-      fetch(event.request)
-        .then((response) => cachePut(event.request, response))
-        .catch(() => caches.match(event.request, { ignoreSearch: true }))
-    );
+  // Fresh app and fresh menu whenever there's a signal; cached when there isn't.
+  if (isPageRequest(event.request, url) || isSquareSyncPath(url.pathname)) {
+    event.respondWith(networkFirst(event.request));
     return;
   }
-
-  // Everything else: cache-first for instant offline loads.
-  event.respondWith(
-    caches.match(event.request, { ignoreSearch: true }).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request).then((response) => cachePut(event.request, response));
-    })
-  );
+  event.respondWith(staleWhileRevalidate(event.request));
 });
