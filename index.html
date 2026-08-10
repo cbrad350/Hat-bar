@@ -398,6 +398,10 @@
   .card-stepper .step-btn { width: 40px; height: 40px; font-size: 20px; }
   .card-stepper .qty { width: auto; flex: 1; font-size: 16px; }
 
+  .build-stamp {
+    text-align: center; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--line-deep); padding: 4px 0 18px;
+  }
   .link-btn {
     flex: 1; text-align: left; font-size: 13px; line-height: 1.35; padding: 9px 11px;
     border-radius: 10px; background: #E3EBE2; color: #35563A; border: 1px solid #C6D8C4;
@@ -472,6 +476,7 @@
 
 /* ================= Storage & default catalog ================= */
 
+const APP_BUILD = "2026-08-10 · grids";
 const CATALOG_KEY = "hatbar-catalog-v3";
 const TALLY_KEY = "hatbar-tally-v3";
 
@@ -1557,6 +1562,9 @@ function renderEdit() {
     "</div>";
 
   html += '<div class="danger-zone"><button id="reset-catalog">Reset menu to the printed price list</button></div>';
+  // Printed so a support question ("which version is this phone on?") has an
+  // answer, instead of guessing whether an update actually landed.
+  html += '<div class="build-stamp">Version ' + esc(APP_BUILD) + "</div>";
 
   main.innerHTML = html;
   wireEditHandlers();
