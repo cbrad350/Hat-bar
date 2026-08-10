@@ -331,6 +331,11 @@
   .danger-zone button { color: var(--danger); font-weight: 600; font-size: 14px; padding: 10px; }
   .edit-hint { font-size: 13px; color: var(--ink-soft); margin: 10px 6px 14px; line-height: 1.5; }
   .edit-hint b { color: var(--ink); }
+  .warn-hint {
+    font-size: 13px; line-height: 1.45; margin: 8px 2px 0; padding: 9px 11px;
+    border-radius: 10px; background: #F6E3DC; color: #7A2E20;
+    border: 1px solid #E0BCB1; font-weight: 600;
+  }
   .field-label { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft); margin: 10px 2px 5px; }
   .field-label:first-child { margin-top: 0; }
   .logo-edit-row { display: flex; align-items: center; gap: 12px; }
@@ -956,6 +961,27 @@ function openSquareSetupSheet() {
 
 /* ================= Square Point of Sale hand-off ================= */
 
+// Square POS answers a bad client_id with a bare "your application ID was
+// invalid", which doesn't say which of the look-alike credentials got pasted.
+// Name the mistake instead. Returns null when the value looks usable — unknown
+// shapes pass through rather than blocking a charge on a format we don't know.
+function diagnoseAppId(id) {
+  const v = String(id || "").trim();
+  if (!v) return { block: true, msg: "No Application ID yet — add it in Edit Menu → Square." };
+  if (/^EAAA/.test(v)) return { block: true, msg: "That's the Access Token, not the Application ID. The token belongs in the GitHub secret; paste the Production Application ID (sq0idp-…) here." };
+  if (/sq0idb-/.test(v) || /^sandbox-/i.test(v)) return { block: true, msg: "That's the Sandbox Application ID. Square Point of Sale only accepts Production — switch the Developer Console to Production and copy that ID (sq0idp-…)." };
+  if (!/^sq0idp-/.test(v)) return { block: false, msg: "Production Application IDs start with sq0idp- — double-check this was copied from the Production tab." };
+  return null;
+}
+
+// Warn about a saved-but-doomed Application ID; blank field is not a warning
+// (the setup sheet covers that case when Charge is tapped).
+function appIdWarning() {
+  if (!catalog.squareAppId) return null;
+  const d = diagnoseAppId(catalog.squareAppId);
+  return d ? d.msg : null;
+}
+
 function buildSquareUrl(totalCents, note) {
   const data = {
     amount_money: { amount: totalCents, currency_code: "USD" },
@@ -982,6 +1008,11 @@ function charge() {
     return;
   }
   if (!catalog.squareAppId) { openSquareSetupSheet(); return; }
+  // Catch a credential that Square is certain to reject before app-switching,
+  // so the owner reads which credential is wrong instead of Square's generic
+  // "your application ID was invalid" after the screen has already flipped.
+  const badId = diagnoseAppId(catalog.squareAppId);
+  if (badId && badId.block) { showToast(badId.msg); return; }
   if (tally.pendingCharge) { openPendingChargeSheet(); return; } // no accidental double-launch
   let note = bill.lines.map((l) => l.name + " " + fmt(l.price)).join(", ");
   if (bill.discount) note += ", Discount " + bill.discount.code + " −" + fmt(bill.discount.amount);
@@ -1208,6 +1239,7 @@ function renderEdit() {
   html += '<h2 class="menu-head">Square</h2><div class="card edit-card">' +
     '<div class="field-label">Application ID (for the Charge button)</div>' +
     '<div class="edit-row"><input class="text-input" id="square-app-id" value="' + esc(catalog.squareAppId || "") + '" placeholder="sq0idp-…" autocapitalize="off" autocorrect="off"></div>' +
+    '<div class="warn-hint" id="app-id-warn"' + (appIdWarning() ? "" : " hidden") + ">" + esc(appIdWarning() || "") + "</div>" +
     '<div class="edit-hint" style="margin:8px 0 0">Charge opens the <b>Square Point of Sale</b> app with the total and an itemized note, so payment lands in the connected Square account. Get a free Application ID at <b>developer.squareup.com</b>.</div>' +
     '<button class="import-btn" id="import-square">⟳ Import items &amp; photos from Square</button>' +
     '<div class="edit-hint" style="margin:8px 0 0">Pulls the item library synced from the Square account by the repo\'s <b>Sync Square catalog</b> action — every item, price, and product photo. Set up once in the README, then re-run the action any time the Square library changes.</div>' +
@@ -1264,7 +1296,12 @@ function wireEditHandlers() {
   };
   bindText("#edit-shop", (i) => { catalog.shopName = i.value; renderHeader(); });
   bindText("#edit-tagline", (i) => { catalog.tagline = i.value; renderHeader(); });
-  bindText("#square-app-id", (i) => { catalog.squareAppId = i.value.trim(); });
+  bindText("#square-app-id", (i) => {
+    catalog.squareAppId = i.value.trim();
+    const warn = $("#app-id-warn");
+    warn.textContent = appIdWarning() || "";
+    warn.hidden = !appIdWarning();
+  });
   bindText("[data-incname]", (i) => {
     const inc = catalog.includes.find((x) => x.id === i.dataset.incname);
     if (inc) inc.name = i.value;
