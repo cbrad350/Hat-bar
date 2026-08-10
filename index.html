@@ -365,6 +365,39 @@
   .pick-card.active .pick-label { font-weight: 650; }
   .pick-cost { font-size: 13px; font-weight: 700; color: var(--accent-deep); padding: 3px 10px 0; }
 
+  /* --- Mix & match: same cards as the hats, plus a stepper per card --- */
+  .mm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px 12px 12px; }
+  .item-card {
+    display: flex; flex-direction: column; border-radius: 13px; overflow: hidden;
+    background: var(--card); border: 1.5px solid var(--line);
+  }
+  .item-card.active { border-color: var(--accent); background: var(--card-deep); }
+  /* Shorter than the hat cards: enhancements are quick picks, and a squatter
+     photo fits noticeably more of a nine-item section on screen at once. */
+  .card-photo {
+    position: relative; width: 100%; aspect-ratio: 4 / 3; background: var(--accent-soft);
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+  }
+  .card-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .card-photo .mono { font-family: var(--serif); font-weight: 700; font-size: 22px; color: var(--accent-deep); }
+  .qty-badge {
+    position: absolute; top: 6px; right: 6px; min-width: 26px; height: 26px; padding: 0 7px;
+    border-radius: 999px; background: var(--accent); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 800; box-shadow: 0 1px 4px rgba(36, 27, 18, 0.35);
+  }
+  .card-body { flex: 1; padding: 8px 10px 0; }
+  .card-body .item-name { font-size: 13.5px; line-height: 1.25; }
+  .card-body .item-price { font-size: 12.5px; margin-top: 3px; }
+  .card-body .item-price button { display: inline-block; }
+  .card-body .item-note { font-size: 11.5px; }
+  .card-stepper {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 4px; padding: 8px 8px 8px;
+  }
+  .card-stepper .step-btn { width: 40px; height: 40px; font-size: 20px; }
+  .card-stepper .qty { width: auto; flex: 1; font-size: 16px; }
+
   .link-btn {
     flex: 1; text-align: left; font-size: 13px; line-height: 1.35; padding: 9px 11px;
     border-radius: 10px; background: #E3EBE2; color: #35563A; border: 1px solid #C6D8C4;
@@ -669,11 +702,15 @@ function sectionStatus(section) {
   }
   const parts = [];
   let sum = 0;
+  // Must charge the same way computeBill() does: units covered by the hat's
+  // allowance are free, so a collapsed section can't bill them again.
+  const freeUnits = allowanceFreeUnits();
   for (const item of section.items) {
     const entry = tally.items[item.id];
     if (entry && entry.qty > 0) {
       parts.push(item.name + (entry.qty > 1 ? " ×" + entry.qty : ""));
-      sum += entrySum(entry);
+      const freeQty = Math.min(entry.qty, freeUnits.get(item.id) || 0);
+      sum += unitPrices(entry).slice(freeQty).reduce((n, p) => n + p, 0);
     }
   }
   return parts.length
@@ -733,14 +770,15 @@ function renderTally() {
           html += "</div>";
         }
       }
-      for (const item of section.items) {
-        if (section.type === "single") {
-          // rendered as a grid above
-        } else {
+      if (section.type !== "single") {
+        // Same card language as the hats, but these can be taken more than
+        // once, so each card carries its own stepper and a count badge.
+        html += '<div class="mm-grid">';
+        for (const item of section.items) {
           const entry = tally.items[item.id];
           const qty = entry ? entry.qty : 0;
           // Units covered by the hat's allowance cost nothing; only the rest
-          // is priced, so the row must show both halves.
+          // is priced, so the card must show both halves.
           const allow = allowanceForItem(item.id);
           const freeQty = qty > 0 ? Math.min(qty, allowanceFreeUnits().get(item.id) || 0) : 0;
           const paidQty = qty - freeQty;
@@ -750,7 +788,7 @@ function renderTally() {
               // One tappable price per unit — adjust any piece without touching the others.
               priceHtml = unitPrices(entry).map((p, ui) =>
                 '<button data-editprice="' + item.id + '" data-unit="' + ui + '" aria-label="Adjust ' + esc(item.name) + ' price ' + (ui + 1) + '">' + fmt(p) + "</button>"
-              ).join(" + ") + " · adjust";
+              ).join(" + ");
             } else if (paidQty > 0) {
               priceHtml = fmt(entry.price) + " each" + (freeQty ? " · " + freeQty + " free" : "");
             } else {
@@ -763,18 +801,23 @@ function renderTally() {
             priceHtml += '<span class="allow-chip' + (allow.used >= allow.qty ? " spent" : "") + '">' +
               allow.used + " of " + allow.qty + " " + esc(allow.inc.name) + "</span>";
           }
-          html += '<div class="item-row' + (qty > 0 ? " active" : "") + '">' +
-            thumbHTML(item) +
-            '<div class="item-info"><div class="item-name">' + esc(item.name) + "</div>" +
+          html += '<div class="item-card' + (qty > 0 ? " active" : "") + '">' +
+            '<span class="card-photo">' +
+            (item.photo ? '<img src="' + item.photo + '" alt="" loading="lazy">' : '<span class="mono">' + esc(monogram(item.name)) + "</span>") +
+            (qty > 0 ? '<span class="qty-badge">' + qty + "</span>" : "") +
+            "</span>" +
+            '<div class="card-body">' +
+            '<div class="item-name">' + esc(item.name) + "</div>" +
             '<div class="item-price">' + priceHtml + "</div>" +
             (item.note ? '<div class="item-note">' + esc(item.note) + "</div>" : "") +
             "</div>" +
-            '<div class="stepper">' +
+            '<div class="card-stepper">' +
             '<button class="step-btn" data-dec="' + item.id + '"' + (qty === 0 ? " disabled" : "") + ' aria-label="Remove one ' + esc(item.name) + '">−</button>' +
             '<span class="qty' + (qty === 0 ? " zero" : "") + '" aria-label="' + qty + ' in tally">' + qty + "</span>" +
             '<button class="step-btn" data-inc="' + item.id + '" aria-label="Add ' + esc(item.name) + '">+</button>' +
             "</div></div>";
         }
+        html += "</div>";
       }
       if (section.type !== "single") {
         const nextSec = catalog.sections.slice(si + 1).find((s) => s.items.length);
