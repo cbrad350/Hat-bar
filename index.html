@@ -1089,8 +1089,6 @@ async function importSquareCatalog() {
     showToast("Synced catalog is empty");
     return;
   }
-  if (!confirm("Replace the menu with " + data.items.length + " items from the Square catalog? Shop settings, includes, and discounts are kept.")) return;
-
   const titleCase = (s) => String(s).toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
   const isHatCat = (c) => /^hats?$/i.test(String(c).trim());
   // Square item names carry bookkeeping the customer shouldn't see: a category
@@ -1112,47 +1110,116 @@ async function importSquareCatalog() {
       .trim();
   };
 
-  const hatItems = [], upgradeItems = [], otherSections = new Map();
+  // Group the Square library into the sections it should land in. Nothing is
+  // written to the catalog here — this is the "what Square says" side of the
+  // merge below.
+  const incoming = new Map(); // section name -> { type, items: [...] }
+  const bucket = (name, type) => {
+    if (!incoming.has(name)) incoming.set(name, { type, items: [] });
+    return incoming.get(name);
+  };
   for (const raw of data.items) {
     const cat = String(raw.category || "Other").trim();
     const item = {
-      id: uid(),
+      sqId: raw.id,
       name: cleanName(raw.name, cat),
       price: Number(raw.price) || 0,
       variable: Number(raw.priceMax) > Number(raw.price),
-      note: "",
       photo: raw.photo || null,
     };
     if (isHatCat(cat)) {
-      if (/upgrade/i.test(item.name)) upgradeItems.push(item);
-      else hatItems.push(item);
+      if (/upgrade/i.test(item.name)) bucket("Hat Upgrades", "multi").items.push(item);
+      else bucket("Hats", "single").items.push(item);
     } else {
-      const key = titleCase(cat);
-      if (!otherSections.has(key)) otherSections.set(key, []);
-      otherSections.get(key).push(item);
+      bucket(titleCase(cat), "multi").items.push(item);
     }
   }
 
-  const sections = [];
-  if (hatItems.length) sections.push({ id: uid(), name: "Hats", sub: "Tap to choose the hat", type: "single", items: hatItems });
-  if (upgradeItems.length) sections.push({ id: uid(), name: "Hat Upgrades", sub: "", type: "multi", items: upgradeItems });
-  for (const [name, items] of otherSections) sections.push({ id: uid(), name, sub: "", type: "multi", items });
+  // Merging is safe enough to run without a prompt, but it clears the hat on
+  // the counter — only worth interrupting for when there's something to lose.
+  // Ask before touching the catalog, so backing out changes nothing at all.
+  const inProgress = Object.keys(tally.items).length || Object.keys(tally.selections).length;
+  if (inProgress && !confirm("There's a hat in progress. Importing clears it — continue?")) return;
 
-  catalog.sections = sections;
+  // Merge, don't replace. Square owns names and prices; the owner owns
+  // everything she set by hand — the "$N+" flag, a photo from the camera roll,
+  // a note, and where things sit in the list. Items added in the app (no sqId)
+  // are never touched, and an item pulled from Square stays put in the section
+  // it already lives in unless its Square category actually moved.
+  const seen = new Set(data.items.map((r) => r.id));
+
+  // The very first import is an adoption, not a merge: the menu still holds the
+  // built-in sample items, which would otherwise sit alongside the real ones
+  // forever. Nothing here came from Square, so ask before clearing it.
+  const firstImport = !catalog.sections.some((s) => s.items.some((i) => i.sqId));
+  if (firstImport) {
+    if (!confirm("Replace the current menu with " + data.items.length + " items from Square? Shop settings, logo, includes and discount codes are kept.")) return;
+    catalog.sections = [];
+  }
+
+  const existingBySqId = new Map();
+  for (const sec of catalog.sections) {
+    for (const it of sec.items) if (it.sqId) existingBySqId.set(it.sqId, { sec, it });
+  }
+
+  let added = 0, updated = 0, removed = 0;
+
+  // Drop items that were deleted in Square; keep hand-made ones regardless.
+  for (const sec of catalog.sections) {
+    const before = sec.items.length;
+    sec.items = sec.items.filter((it) => !it.sqId || seen.has(it.sqId));
+    removed += before - sec.items.length;
+  }
+
+  for (const [secName, group] of incoming) {
+    let section = catalog.sections.find((s) => s.name.trim().toLowerCase() === secName.toLowerCase());
+    if (!section) {
+      section = { id: uid(), name: secName, sub: secName === "Hats" ? "Tap to choose the hat" : "", type: group.type, items: [] };
+      catalog.sections.push(section);
+    }
+    for (const inc of group.items) {
+      const hit = existingBySqId.get(inc.sqId);
+      if (hit) {
+        // Refresh what Square owns, preserve what she set.
+        hit.it.name = inc.name;
+        hit.it.price = inc.price;
+        // A camera-roll photo (data: URI) she attached outranks Square's.
+        if (!String(hit.it.photo || "").startsWith("data:")) hit.it.photo = inc.photo;
+        if (hit.sec !== section) {
+          hit.sec.items = hit.sec.items.filter((x) => x !== hit.it);
+          section.items.push(hit.it);
+        }
+        updated++;
+      } else {
+        section.items.push({ id: uid(), sqId: inc.sqId, name: inc.name, price: inc.price, variable: inc.variable, note: "", photo: inc.photo });
+        added++;
+      }
+    }
+  }
+
+  // A section left with nothing but its heading is noise on the register.
+  catalog.sections = catalog.sections.filter((s) => s.items.length);
+
   tally = { selections: {}, items: {}, discountCode: "" };
   save(CATALOG_KEY, catalog);
   save(TALLY_KEY, tally);
-  expandedId = (catalog.sections[0] || {}).id || null;
+  if (!catalog.sections.some((s) => s.id === expandedId)) {
+    expandedId = (catalog.sections[0] || {}).id || null;
+  }
   // Pre-warm the service-worker cache with every synced photo now, while
   // we're online — so going offline before a section is ever opened still
   // shows its photos at the bar.
-  for (const s of sections) {
+  for (const s of catalog.sections) {
     for (const it of s.items) {
       if (it.photo && !String(it.photo).startsWith("data:")) fetch(it.photo).catch(() => {});
     }
   }
   renderEdit();
-  showToast("Imported " + data.items.length + " items from Square" + (data.generatedAt ? " (synced " + String(data.generatedAt).slice(0, 10) + ")" : ""));
+  const parts = [];
+  if (added) parts.push(added + " new");
+  if (updated) parts.push(updated + " updated");
+  if (removed) parts.push(removed + " removed");
+  showToast(parts.length ? "Square sync: " + parts.join(", ") : "Already up to date with Square");
 }
 
 /* ================= Edit view ================= */
