@@ -1062,9 +1062,23 @@ async function importSquareCatalog() {
 
   const titleCase = (s) => String(s).toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
   const isHatCat = (c) => /^hats?$/i.test(String(c).trim());
-  const stripPrefix = (name, cat) => {
-    const re = new RegExp("^\\s*" + cat.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\s*:\\s*", "i");
-    return String(name).replace(re, "").trim();
+  // Square item names carry bookkeeping the customer shouldn't see: a category
+  // prefix ("BANDS: Scarf"), the package the price already includes
+  // ("… + Basic Customization Package"), and "Copy" tails left by duplicating
+  // an item in the Square dashboard. Strip all three, keep the hat's real name.
+  // The prefix rarely equals the category name exactly — a "Hats" category
+  // holds "HAT: Austrian Wool Rancher" — so drop any SHOUTED "WORD:" lead-in
+  // as well as one matching the category itself. Mixed-case names keep their
+  // colons ("Chain 1 - 6 Inch" style names are unaffected either way).
+  const cleanName = (name, cat) => {
+    const prefix = new RegExp("^\\s*" + cat.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\s*:\\s*", "i");
+    return String(name)
+      .replace(prefix, "")
+      .replace(/^\s*[A-Z][A-Z ]*:\s*/, "")
+      .replace(/\s*\+\s*basic\b.*$/i, "")
+      .replace(/(\s+copy)+\s*$/i, "")
+      .replace(/\s{2,}/g, " ")
+      .trim();
   };
 
   const hatItems = [], upgradeItems = [], otherSections = new Map();
@@ -1072,7 +1086,7 @@ async function importSquareCatalog() {
     const cat = String(raw.category || "Other").trim();
     const item = {
       id: uid(),
-      name: stripPrefix(raw.name, cat),
+      name: cleanName(raw.name, cat),
       price: Number(raw.price) || 0,
       variable: Number(raw.priceMax) > Number(raw.price),
       note: "",
