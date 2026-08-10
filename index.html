@@ -331,6 +331,69 @@
   .danger-zone button { color: var(--danger); font-weight: 600; font-size: 14px; padding: 10px; }
   .edit-hint { font-size: 13px; color: var(--ink-soft); margin: 10px 6px 14px; line-height: 1.5; }
   .edit-hint b { color: var(--ink); }
+  /* --- Hat picker: photo grid grouped by price tier --- */
+  .tier-head {
+    display: flex; align-items: baseline; gap: 8px;
+    padding: 12px 14px 2px; font-family: var(--serif); font-weight: 700;
+    font-size: 15px; letter-spacing: 0.1em; color: var(--accent-deep);
+    border-top: 1px solid var(--line);
+  }
+  .includes-banner + .tier-head, .sec-body > .tier-head:first-child { border-top: none; }
+  .tier-count { font-family: inherit; font-size: 11px; font-weight: 500; letter-spacing: 0.06em; color: var(--ink-soft); text-transform: uppercase; }
+  .pick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 8px 12px 12px; }
+  .pick-card {
+    display: flex; flex-direction: column; align-items: stretch; text-align: left;
+    border-radius: 13px; overflow: hidden; background: var(--card);
+    border: 1.5px solid var(--line); padding-bottom: 8px;
+  }
+  .pick-card.active { border-color: var(--accent); background: var(--card-deep); }
+  .pick-photo {
+    position: relative; display: block; width: 100%; aspect-ratio: 1 / 1;
+    background: var(--accent-soft); overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .pick-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .pick-photo .mono { font-family: var(--serif); font-weight: 700; font-size: 24px; color: var(--accent-deep); }
+  .pick-tick {
+    position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; border-radius: 50%;
+    background: rgba(255, 255, 255, 0.85); border: 1.5px solid var(--line-deep);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 800; color: transparent;
+  }
+  .pick-card.active .pick-tick { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .pick-label { font-size: 13px; line-height: 1.25; padding: 8px 10px 0; }
+  .pick-card.active .pick-label { font-weight: 650; }
+  .pick-cost { font-size: 13px; font-weight: 700; color: var(--accent-deep); padding: 3px 10px 0; }
+
+  .link-btn {
+    flex: 1; text-align: left; font-size: 13px; line-height: 1.35; padding: 9px 11px;
+    border-radius: 10px; background: #E3EBE2; color: #35563A; border: 1px solid #C6D8C4;
+    font-weight: 600; min-height: 40px;
+  }
+  .link-btn.unlinked { background: #F6E3DC; color: #7A2E20; border-color: #E0BCB1; }
+  .link-list { max-height: 46vh; overflow-y: auto; margin: 0 -4px 14px; }
+  .link-row {
+    display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+    padding: 10px 6px; border-top: 1px solid var(--line); min-height: 48px;
+  }
+  .link-row:first-child { border-top: none; }
+  .link-check {
+    width: 22px; height: 22px; border-radius: 6px; flex: none; border: 2px solid var(--line-deep);
+    display: flex; align-items: center; justify-content: center; color: transparent;
+    font-size: 13px; font-weight: 800;
+  }
+  .link-row.on .link-check { background: var(--good); border-color: var(--good); color: #fff; }
+  .link-name { flex: 1; font-size: 15px; }
+  .link-sec { font-size: 11px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.08em; }
+  .allow-chip {
+    display: block; width: fit-content; max-width: 100%; margin: 4px 0 0;
+    padding: 2px 9px; border-radius: 999px;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.03em;
+    background: #DDE8DC; color: var(--good); border: 1px solid #C2D6C0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .allow-chip.spent { background: var(--accent-soft); color: var(--accent-deep); border-color: var(--line-deep); }
+  .receipt-line.r-included .r-name, .receipt-line.r-included .r-price { color: var(--good); }
   .warn-hint {
     font-size: 13px; line-height: 1.45; margin: 8px 2px 0; padding: 9px 11px;
     border-radius: 10px; background: #F6E3DC; color: #7A2E20;
@@ -505,6 +568,44 @@ function unitPrices(entry) {
 }
 function entrySum(entry) { return unitPrices(entry).reduce((sum, p) => sum + p, 0); }
 
+// The base hat covers an allowance — 3 signature bands, 3 feathers, a pin, a
+// brand — so those first few taps must ring up at $0 while everything past the
+// allowance charges list price. Returns itemId -> how many of its units are
+// free. Each allowance is drawn down in the order its items are linked, so the
+// result is predictable when one allowance covers several items (3 feathers
+// split between Signature and Pompas).
+function allowanceFreeUnits() {
+  const free = new Map();
+  for (const inc of catalog.includes) {
+    let remaining = Math.max(0, Math.floor(Number(inc.qty) || 0));
+    for (const itemId of inc.itemIds || []) {
+      if (remaining <= 0) break;
+      const entry = tally.items[itemId];
+      if (!entry || !entry.qty) continue;
+      const taken = free.get(itemId) || 0;
+      const take = Math.min(remaining, entry.qty - taken);
+      if (take <= 0) continue;
+      free.set(itemId, taken + take);
+      remaining -= take;
+    }
+  }
+  return free;
+}
+
+// How much of each allowance is spoken for, for the "2 of 3 included" chips.
+function allowanceUsage() {
+  const free = allowanceFreeUnits();
+  return catalog.includes.map((inc) => ({
+    inc,
+    used: (inc.itemIds || []).reduce((n, id) => n + (free.get(id) || 0), 0),
+    qty: Math.max(0, Math.floor(Number(inc.qty) || 0)),
+  }));
+}
+
+function allowanceForItem(itemId) {
+  return allowanceUsage().find((a) => (a.inc.itemIds || []).includes(itemId)) || null;
+}
+
 function computeBill() {
   const lines = [];
   for (const section of catalog.sections) {
@@ -514,12 +615,22 @@ function computeBill() {
     const item = section.items.find((i) => i.id === sel.itemId);
     if (item) lines.push({ name: item.name, price: Number(sel.price) || 0, sid: section.id });
   }
+  const freeUnits = allowanceFreeUnits();
   for (const section of catalog.sections) {
     if (section.type === "single") continue;
     for (const item of section.items) {
       const entry = tally.items[item.id];
-      if (entry && entry.qty > 0) {
-        lines.push({ name: item.name + (entry.qty > 1 ? " ×" + entry.qty : ""), price: entrySum(entry), sid: section.id });
+      if (!entry || entry.qty <= 0) continue;
+      const freeQty = Math.min(entry.qty, freeUnits.get(item.id) || 0);
+      // Included units are listed at $0 rather than hidden: the receipt should
+      // show everything on the hat, and the customer should see what was free.
+      if (freeQty > 0) {
+        lines.push({ name: item.name + " ×" + freeQty, price: 0, sid: section.id, included: true });
+      }
+      const paidQty = entry.qty - freeQty;
+      if (paidQty > 0) {
+        const paid = unitPrices(entry).slice(freeQty).reduce((sum, p) => sum + p, 0);
+        lines.push({ name: item.name + (paidQty > 1 ? " ×" + paidQty : ""), price: paid, sid: section.id });
       }
     }
   }
@@ -591,21 +702,48 @@ function renderTally() {
       if (section.type === "single" && catalog.includes.length) {
         html += '<div class="includes-banner">Every hat includes <b>' + esc(includesSummary()) + "</b> — swaps &amp; extras below are list price, never deducted.</div>";
       }
+      if (section.type === "single") {
+        // 20 hats is a long scroll with a customer waiting, so show them as a
+        // photo grid grouped by price — which also stops the pricier tier from
+        // being buried two thirds of the way down the list.
+        const sel = tally.selections[section.id];
+        const tiers = new Map();
+        for (const item of section.items) {
+          const key = (Number(item.price) || 0) + (item.variable ? "+" : "");
+          if (!tiers.has(key)) tiers.set(key, []);
+          tiers.get(key).push(item);
+        }
+        const sorted = [...tiers.entries()].sort((a, b) => parseFloat(a[0]) - parseFloat(b[0]));
+        for (const [key, items] of sorted) {
+          if (sorted.length > 1) {
+            html += '<div class="tier-head">' + fmt(parseFloat(key)) + (key.endsWith("+") ? "+" : "") +
+              '<span class="tier-count">' + items.length + " style" + (items.length === 1 ? "" : "s") + "</span></div>";
+          }
+          html += '<div class="pick-grid">';
+          for (const item of items) {
+            const isSel = sel && sel.itemId === item.id;
+            html += '<button class="pick-card' + (isSel ? " active" : "") + '" data-pick="' + section.id + ":" + item.id + '">' +
+              '<span class="pick-photo">' +
+              (item.photo ? '<img src="' + item.photo + '" alt="" loading="lazy">' : '<span class="mono">' + esc(monogram(item.name)) + "</span>") +
+              '<span class="pick-tick">✓</span></span>' +
+              '<span class="pick-label">' + esc(item.name) + "</span>" +
+              '<span class="pick-cost">' + fmt(Number(item.price) || 0) + (item.variable ? "+" : "") + "</span>" +
+              "</button>";
+          }
+          html += "</div>";
+        }
+      }
       for (const item of section.items) {
         if (section.type === "single") {
-          const sel = tally.selections[section.id];
-          const isSel = sel && sel.itemId === item.id;
-          html += '<button class="item-row pick-row' + (isSel ? " active" : "") + '" data-pick="' + section.id + ":" + item.id + '">' +
-            thumbHTML(item) +
-            '<div class="item-info"><div class="item-name">' + esc(item.name) + "</div>" +
-            (item.note ? '<div class="item-note">' + esc(item.note) + "</div>" : "") +
-            "</div>" +
-            '<span class="pick-price">' + fmt(Number(item.price) || 0) + (item.variable ? "+" : "") + "</span>" +
-            '<span class="pick-check">✓</span>' +
-            "</button>";
+          // rendered as a grid above
         } else {
           const entry = tally.items[item.id];
           const qty = entry ? entry.qty : 0;
+          // Units covered by the hat's allowance cost nothing; only the rest
+          // is priced, so the row must show both halves.
+          const allow = allowanceForItem(item.id);
+          const freeQty = qty > 0 ? Math.min(qty, allowanceFreeUnits().get(item.id) || 0) : 0;
+          const paidQty = qty - freeQty;
           let priceHtml;
           if (qty > 0) {
             if (item.variable) {
@@ -613,11 +751,17 @@ function renderTally() {
               priceHtml = unitPrices(entry).map((p, ui) =>
                 '<button data-editprice="' + item.id + '" data-unit="' + ui + '" aria-label="Adjust ' + esc(item.name) + ' price ' + (ui + 1) + '">' + fmt(p) + "</button>"
               ).join(" + ") + " · adjust";
+            } else if (paidQty > 0) {
+              priceHtml = fmt(entry.price) + " each" + (freeQty ? " · " + freeQty + " free" : "");
             } else {
-              priceHtml = fmt(entry.price) + " each";
+              priceHtml = "Included — no charge";
             }
           } else {
             priceHtml = fmt(Number(item.price) || 0) + (item.variable ? "+" : "");
+          }
+          if (allow) {
+            priceHtml += '<span class="allow-chip' + (allow.used >= allow.qty ? " spent" : "") + '">' +
+              allow.used + " of " + allow.qty + " " + esc(allow.inc.name) + "</span>";
           }
           html += '<div class="item-row' + (qty > 0 ? " active" : "") + '">' +
             thumbHTML(item) +
@@ -828,7 +972,7 @@ function renderTotalBar() {
     ? '<div class="receipt-inner">' +
       (bill.lines.length
         ? bill.lines.map((l) =>
-            '<button class="receipt-line" data-goto="' + l.sid + '"><span class="r-name">' + esc(l.name) + '</span><span class="r-price">' + fmt(l.price) + "</span></button>"
+            '<button class="receipt-line' + (l.included ? " r-included" : "") + '" data-goto="' + l.sid + '"><span class="r-name">' + esc(l.name) + '</span><span class="r-price">' + (l.included ? "Included" : fmt(l.price)) + "</span></button>"
           ).join("")
         : '<div class="receipt-line"><span class="r-name" style="color:var(--ink-soft)">Nothing on this hat yet</span></div>') +
       (bill.discount
@@ -932,6 +1076,48 @@ function openPriceSheet(item, startPrice, onSave, actionLabel) {
   input.addEventListener("keydown", (e) => { if (e.key === "Enter") commit(); });
   $("#sheet-cancel").addEventListener("click", closeModal);
   $("#overlay").addEventListener("click", (e) => { if (e.target.id === "overlay") closeModal(); });
+}
+
+// Choose which menu items an allowance pays for. Only mix & match items can be
+// covered — the hat itself is the thing the allowance comes with, not part of it.
+function openLinkSheet(inc) {
+  const pool = catalog.sections.filter((s) => s.type !== "single");
+  const chosen = new Set(inc.itemIds || []);
+  const draw = () => {
+    $("#modal-root").innerHTML =
+      '<div class="overlay" id="overlay"><div class="sheet">' +
+      "<h3>" + esc(inc.name || "Included item") + "</h3>" +
+      '<div class="sheet-sub">The first <b>' + (Number(inc.qty) || 1) + "</b> of these on a hat ring up free. Anything past that charges list price.</div>" +
+      '<div class="link-list">' +
+      (pool.length
+        ? pool.map((s) =>
+            s.items.map((it) =>
+              '<button class="link-row' + (chosen.has(it.id) ? " on" : "") + '" data-pick-item="' + it.id + '">' +
+              '<span class="link-check">✓</span>' +
+              '<span class="link-name">' + esc(it.name) + "</span>" +
+              '<span class="link-sec">' + esc(s.name) + "</span></button>"
+            ).join("")
+          ).join("")
+        : '<div class="sheet-sub">No mix &amp; match items yet — import from Square first.</div>') +
+      "</div>" +
+      '<div class="sheet-btns"><button class="sheet-btn primary" id="sheet-done">Done</button></div>' +
+      "</div></div>";
+    $("#modal-root").querySelectorAll("[data-pick-item]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.dataset.pickItem;
+        if (chosen.has(id)) chosen.delete(id); else chosen.add(id);
+        draw();
+      });
+    });
+    $("#sheet-done").addEventListener("click", () => {
+      inc.itemIds = [...chosen];
+      saveCatalog();
+      closeModal();
+      renderEdit();
+    });
+    $("#overlay").addEventListener("click", (e) => { if (e.target.id === "overlay") $("#sheet-done").click(); });
+  };
+  draw();
 }
 
 function openSquareSetupSheet() {
@@ -1171,7 +1357,17 @@ async function importSquareCatalog() {
     removed += before - sec.items.length;
   }
 
-  for (const [secName, group] of incoming) {
+  // Square hands back categories alphabetically, which would put Hats last and
+  // have the customer choose the hat after its bands. Impose the build order
+  // instead; anything unrecognised keeps its place at the end.
+  const ORDER = ["Hats", "Hat Upgrades", "Bands", "Feathers", "Details"];
+  const rank = (name) => {
+    const i = ORDER.findIndex((n) => n.toLowerCase() === name.toLowerCase());
+    return i === -1 ? ORDER.length : i;
+  };
+  const ordered = [...incoming.entries()].sort((a, b) => rank(a[0]) - rank(b[0]));
+
+  for (const [secName, group] of ordered) {
     let section = catalog.sections.find((s) => s.name.trim().toLowerCase() === secName.toLowerCase());
     if (!section) {
       section = { id: uid(), name: secName, sub: secName === "Hats" ? "Tap to choose the hat" : "", type: group.type, items: [] };
@@ -1243,13 +1439,18 @@ function renderEdit() {
     "</div>";
 
   html += '<h2 class="menu-head">Included With Hat</h2>' +
-    '<div class="menu-sub">Free with every hat — shown to the customer, never charged</div><div class="card"><div class="edit-card">';
+    '<div class="menu-sub">Free with every hat — link each one to the menu items it covers</div><div class="card"><div class="edit-card">';
   catalog.includes.forEach((inc, i) => {
+    const linked = (inc.itemIds || []).map((id) => findItem(id)).filter(Boolean);
     html += '<div class="opt-edit' + (i === 0 ? " first" : "") + '"><div class="edit-row">' +
       '<input class="price-input inc-qty-input" inputmode="numeric" data-incqty="' + inc.id + '" value="' + (Number(inc.qty) || 1) + '">' +
       '<input class="text-input" data-incname="' + inc.id + '" value="' + esc(inc.name) + '" placeholder="Included item">' +
       '<button class="icon-btn danger" data-del-inc="' + inc.id + '" aria-label="Remove">✕</button>' +
-      "</div></div>";
+      "</div>" +
+      '<div class="edit-subrow">' +
+      '<button class="link-btn' + (linked.length ? "" : " unlinked") + '" data-link="' + inc.id + '">' +
+      (linked.length ? "Covers: " + esc(linked.map((it) => it.name).join(", ")) : "⚠ Not linked — tap to choose which items are free") +
+      "</button></div></div>";
   });
   html += '</div><button class="add-btn" id="add-inc">+ Add included item</button></div>';
 
@@ -1465,6 +1666,12 @@ function wireEditHandlers() {
     });
   });
 
+  main.querySelectorAll("[data-link]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const inc = catalog.includes.find((x) => x.id === btn.dataset.link);
+      if (inc) openLinkSheet(inc);
+    });
+  });
   main.querySelectorAll("[data-del-inc]").forEach((btn) => {
     btn.addEventListener("click", () => {
       catalog.includes = catalog.includes.filter((x) => x.id !== btn.dataset.delInc);
@@ -1482,6 +1689,10 @@ function wireEditHandlers() {
       const s = catalog.sections.find((x) => x.id === btn.dataset.delSection);
       if (s && confirm('Delete the whole "' + s.name + '" section?')) {
         for (const item of s.items) delete tally.items[item.id];
+        const gone = new Set(s.items.map((i) => i.id));
+        for (const inc of catalog.includes) {
+          if (inc.itemIds) inc.itemIds = inc.itemIds.filter((id) => !gone.has(id));
+        }
         delete tally.selections[s.id];
         catalog.sections = catalog.sections.filter((x) => x.id !== s.id);
         saveCatalog(); save(TALLY_KEY, tally);
@@ -1495,6 +1706,9 @@ function wireEditHandlers() {
       if (!section || !item) return;
       section.items = section.items.filter((i) => i.id !== item.id);
       delete tally.items[item.id];
+      for (const inc of catalog.includes) {
+        if (inc.itemIds) inc.itemIds = inc.itemIds.filter((id) => id !== item.id);
+      }
       const sel = tally.selections[section.id];
       if (sel && sel.itemId === item.id) delete tally.selections[section.id];
       saveCatalog(); save(TALLY_KEY, tally);
@@ -1523,7 +1737,7 @@ function wireEditHandlers() {
   });
 
   $("#add-inc").addEventListener("click", () => {
-    catalog.includes.push({ id: uid(), name: "", qty: 1 });
+    catalog.includes.push({ id: uid(), name: "", qty: 1, itemIds: [] });
     saveCatalog(); renderEdit();
     focusLast("[data-incname]");
   });
