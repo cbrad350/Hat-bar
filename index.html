@@ -470,13 +470,14 @@
 <div class="toast" id="toast"><span id="toast-msg"></span><button id="toast-undo" hidden>Undo</button></div>
 <div id="modal-root"></div>
 <input type="file" accept="image/*" id="photo-input" hidden>
+<input type="file" accept="application/json,.json" id="restore-input" hidden>
 
 <script>
 "use strict";
 
 /* ================= Storage & default catalog ================= */
 
-const APP_BUILD = "2026-08-10 · grids";
+const APP_BUILD = "2026-08-10 · backup";
 const CATALOG_KEY = "hatbar-catalog-v3";
 const TALLY_KEY = "hatbar-tally-v3";
 
@@ -1309,6 +1310,80 @@ function openPendingChargeSheet() {
 // GitHub Action (which holds the account's access token as a repo secret —
 // the token never reaches this page). Maps Square categories to sections:
 // HAT/HATS becomes the pick-one section, everything else mix & match.
+/* ================= Settings backup & restore ================= */
+
+// Everything the owner set by hand lives in this one phone's storage: the logo,
+// discount codes, allowance links, the "$N+" flags, camera-roll photos and the
+// Square Application ID. Square can rebuild the menu, but none of that — so it
+// gets written to a file she can keep.
+function backupFilename() {
+  const slug = String(catalog.shopName || "hat-bar").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return (slug || "hat-bar") + "-backup-" + new Date().toISOString().slice(0, 10) + ".json";
+}
+
+async function exportSettings() {
+  const payload = {
+    format: "hatbar-settings",
+    version: 1,
+    app: APP_BUILD,
+    exportedAt: new Date().toISOString(),
+    catalog,
+  };
+  const name = backupFilename();
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+
+  // On iPhone the share sheet is the only route to Files, Mail or AirDrop;
+  // a plain download lands nowhere useful from a home-screen app.
+  try {
+    const file = new File([blob], name, { type: "application/json" });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: "Hat Bar settings backup" });
+      return;
+    }
+  } catch (e) {
+    if (e && e.name === "AbortError") return; // she closed the share sheet
+  }
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+  showToast("Backup saved as " + name);
+}
+
+function restoreSettings(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    let payload = null;
+    try { payload = JSON.parse(reader.result); } catch (e) { /* not JSON at all */ }
+    const incoming = payload && payload.format === "hatbar-settings" ? payload.catalog : null;
+    if (!incoming || !Array.isArray(incoming.sections)) {
+      showToast("That file isn't a Hat Bar backup");
+      return;
+    }
+    const when = payload.exportedAt ? String(payload.exportedAt).slice(0, 10) : "an unknown date";
+    const count = incoming.sections.reduce((n, s) => n + (s.items || []).length, 0);
+    if (!confirm("Restore " + count + " items and all settings from the backup made " + when + "? This replaces what's on this phone.")) return;
+
+    catalog = incoming;
+    if (!Array.isArray(catalog.discounts)) catalog.discounts = [];
+    if (!Array.isArray(catalog.includes)) catalog.includes = [];
+    if (!Array.isArray(catalog.sections)) catalog.sections = [];
+    tally = { selections: {}, items: {}, discountCode: "" };
+    saveCatalog();
+    save(TALLY_KEY, tally);
+    expandedId = (catalog.sections[0] || {}).id || null;
+    renderHeader();
+    renderEdit();
+    showToast("Restored the backup from " + when);
+  };
+  reader.readAsText(file);
+}
+
 async function importSquareCatalog() {
   let data;
   try {
@@ -1559,6 +1634,14 @@ function renderEdit() {
     '<div class="edit-hint" style="margin:8px 0 0">Charge opens the <b>Square Point of Sale</b> app with the total and an itemized note, so payment lands in the connected Square account. Get a free Application ID at <b>developer.squareup.com</b>.</div>' +
     '<button class="import-btn" id="import-square">⟳ Import items &amp; photos from Square</button>' +
     '<div class="edit-hint" style="margin:8px 0 0">Pulls the item library synced from the Square account by the repo\'s <b>Sync Square catalog</b> action — every item, price, and product photo. Set up once in the README, then re-run the action any time the Square library changes.</div>' +
+    "</div>";
+
+  html += '<h2 class="menu-head">Backup</h2>' +
+    '<div class="menu-sub">Square can rebuild the menu — nothing else here is recoverable</div>' +
+    '<div class="card edit-card">' +
+    '<button class="import-btn" id="backup-save" style="margin-top:0">⬆ Save a backup</button>' +
+    '<div class="edit-hint" style="margin:8px 0 0">Writes the logo, discount codes, allowance links, "+" flags, camera-roll photos and the Square Application ID to a file. Choose <b>Save to Files</b> or mail it to yourself.</div>' +
+    '<button class="add-btn" id="backup-restore" style="margin-top:10px">⬇ Restore from a backup</button>' +
     "</div>";
 
   html += '<div class="danger-zone"><button id="reset-catalog">Reset menu to the printed price list</button></div>';
@@ -1813,6 +1896,8 @@ function wireEditHandlers() {
   });
 
   $("#import-square").addEventListener("click", importSquareCatalog);
+  $("#backup-save").addEventListener("click", exportSettings);
+  $("#backup-restore").addEventListener("click", () => $("#restore-input").click());
 
   $("#reset-catalog").addEventListener("click", () => {
     if (confirm("Replace everything with the printed price list defaults? Photos, logo, codes, and the Square ID will be cleared too.")) {
@@ -1832,6 +1917,12 @@ function focusLast(selector) {
 }
 
 /* ---------- Photo attach ---------- */
+
+$("#restore-input").addEventListener("change", (e) => {
+  const file = e.target.files && e.target.files[0];
+  e.target.value = ""; // let the same file be chosen again after a cancel
+  if (file) restoreSettings(file);
+});
 
 $("#photo-input").addEventListener("change", (e) => {
   const file = e.target.files && e.target.files[0];
