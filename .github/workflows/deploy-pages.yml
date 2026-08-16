@@ -41,6 +41,12 @@ jobs:
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
+      # The published site is public even though the repo is private, so keep
+      # the developer handoff notes out of the artifact — they describe the
+      # people involved and aren't part of the register.
+      - name: Trim non-site files
+        run: rm -rf handoff CLAUDE.md
+
       - name: Upload site
         uses: actions/upload-pages-artifact@v3
         with:
