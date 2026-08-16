@@ -1,0 +1,11 @@
+{
+  "name": "hat-bar-tests",
+  "private": true,
+  "description": "Browser test suite for the Hat Bar Tally register",
+  "scripts": {
+    "test": "./run_tests.sh"
+  },
+  "dependencies": {
+    "playwright-core": "^1.49.0"
+  }
+}
