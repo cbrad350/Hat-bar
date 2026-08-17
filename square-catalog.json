@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-10T15:32:26.012Z",
+  "generatedAt": "2026-08-17T13:56:18.640Z",
   "items": [
     {
       "id": "DM565NCAUIVSA2AGC6AHV2MF",
@@ -90,11 +90,19 @@
       "photo": null
     },
     {
-      "id": "IZPWYHA2KZBZK2Q4KDH6IKDW",
-      "name": "DETAILS: Chain 6 - 12 Inch",
+      "id": "O6EN34ZLHX55OGDRX52VPUI7",
+      "name": "DETAILS: Chain 13-24 Inch",
       "category": "Details",
-      "price": 5,
-      "priceMax": 5,
+      "price": 15,
+      "priceMax": 15,
+      "photo": null
+    },
+    {
+      "id": "IZPWYHA2KZBZK2Q4KDH6IKDW",
+      "name": "DETAILS: Chain 7 - 12 Inch",
+      "category": "Details",
+      "price": 10,
+      "priceMax": 10,
       "photo": null
     },
     {
@@ -312,6 +320,14 @@
       "price": 185,
       "priceMax": 185,
       "photo": "square-photos/GHTVVC4RRLD7OYC5WCBNWRPM.jpeg"
+    },
+    {
+      "id": "SXFREAYUU3E6N36TOFRMTDWN",
+      "name": "DETAILS: Porcupine Quill",
+      "category": "Other",
+      "price": 2,
+      "priceMax": 2,
+      "photo": null
     }
   ]
 }
