@@ -88,6 +88,49 @@ eq("inv fallback total", f2.total, 1306.8);
 const f3 = FM.extractInvoiceFields("Fuel ticket N45XX 06/07/2026 at AUS ramp\nTotal Due $900.00", { knownAirports: ["KAUS"] });
 eq("inv known airport 3-letter", f3.airport, "KAUS");
 
+// Real World Fuel layout (fictionalized): table headers and values land on
+// separate lines, the fueling date is labeled DATE UPLIFTED, amounts carry no
+// dollar signs, and the payable line says PLEASE REMIT THIS AMOUNT.
+const wfs = [
+  "WORLD FUEL SERVICES, INC.", "9800 N.W. 41st STREET SUITE 400", "MIAMI, FL 33178",
+  "INVOICE",
+  "CUSTOMER NO.", "INVOICE NO.", "INVOICE DATE", "PAGE NO.",
+  "123456", "12345678-90123", "18-AUG-2026", "1 - 1",
+  "REMIT TO:", "WORLD FUEL SERVICES", "CHICAGO, IL 60674-0024",
+  "DATE UPLIFTED", "FUEL TICKET", "AIRCRAFT TYPE", "FLIGHT NO.", "PO NO./CONTRACT NO.", "TERMS",
+  "15-AUG-2026", "001974", "N/A", "N/A", "N/A", "21 NET",
+  "TAIL NO.", "LOCATION", "TERRITORY", "DESTINATION", "DUE DATE", "CONTACT",
+  "N45XX/N45XX", "GUC / KGUC", "COLORADO", "N/A", "08-SEP-2026", "Garrett, Scott",
+  "DESCRIPTION", "QUANTITY", "UNIT PRICE", "EXTENDED AMOUNT", "TAX AMOUNT", "INVOICE AMOUNT",
+  "USD", "USD", "USD",
+  "JET FUEL WITH ADDITIVE", "60.00 USG", "9.63383 USD/USG", "578.03", "0.00", "578.03",
+  "SALES TAX", "1 EA", "28.32000 USD/EA", "28.32", "0.00", "28.32",
+  "AIRPORT CHARGES", "1 EA", "54.12000 USD/EA", "54.12", "0.00", "54.12",
+  "660.47", "0.00", "660.47",
+  "COMMENTS", "Customer Card No.: *0685", "FBO Name: AVFLIGHT GUNNISON CORPORATION",
+  "MAIL INSTRUCTIONS", "ELECTRONIC", "SALES ORDER NO.", "34520318",
+  "PLEASE REMIT THIS AMOUNT", "USD 660.47",
+].join("\n");
+const w1 = FM.extractInvoiceFields(wfs, { knownTails: ["N45XX", "N525CJ"], knownAirports: ["KAUS", "KGUC"] });
+eq("wfs tail", w1.tail, "N45XX");
+eq("wfs uplift date not invoice date", w1.date, "2026-08-15");
+eq("wfs airport from known list", w1.airport, "KGUC");
+eq("wfs gallons", w1.gallons, 60);
+eq("wfs remit total, no dollar sign", w1.total, 660.47);
+eq("wfs dashed invoice number past customer number", w1.invoiceNumber, "12345678-90123");
+
+// Same invoice with no flight log loaded yet: the location label window
+// still finds the K-code, and the unit price never beats the remit amount.
+const w2 = FM.extractInvoiceFields(wfs, {});
+eq("wfs airport via location window", w2.airport, "KGUC");
+eq("wfs total without known context", w2.total, 660.47);
+eq("wfs date without known context", w2.date, "2026-08-15");
+
+// No date label at all: the earliest date wins (uplift precedes invoice
+// and due dates), not the first one in the text.
+const w3 = FM.extractInvoiceFields("Invoice 18-AUG-2026\nFueled N45XX 15-AUG-2026 KGUC\nDue 08-SEP-2026\nUSD 660.47 remit", {});
+eq("wfs earliest-date fallback", w3.date, "2026-08-15");
+
 // ---------- matching ----------
 const legs = [
   { date: "2026-06-03", tail: "N45XX", from: "KAUS", to: "KASE", family: "Smith" },

@@ -140,19 +140,35 @@
       if (m) out.tail = m[0];
     }
 
-    let m = text.match(/(?:delivery date|transaction date|service date|fueling date|date of (?:service|delivery)|flight date)[:\s]*([^\n]{0,40})/i);
-    out.date = parseDateLoose(m ? m[1] : "");
-    if (!out.date) out.date = parseDateLoose(text);
+    // World Fuel labels the fueling date "DATE UPLIFTED", and its table layout
+    // puts the value several lines after the label once the PDF is flattened
+    // to text — so search a window after each label instead of the same line.
+    const dateLabels = /date\s+uplifted|uplift(?:ed)?\s+date|delivery date|transaction date|service date|fueling date|date of (?:service|delivery)|flight date/gi;
+    let m;
+    while ((m = dateLabels.exec(text))) {
+      const d = parseDateLoose(text.slice(m.index + m[0].length, m.index + m[0].length + 300));
+      if (d) { out.date = d; break; }
+    }
+    // No usable label: take the EARLIEST date in the document. On an invoice
+    // the uplift precedes the invoice date, which precedes the due date.
+    if (!out.date) out.date = earliestDate(text);
 
-    m = text.match(/(?:location|airport|delivered (?:at|to)|station|icao|into[- ]plane at)[:\s]*"?([A-Z]{3,4})\b/i);
-    if (m) out.airport = m[1].toUpperCase();
-    if (!out.airport) {
-      for (const ap of opts.knownAirports || []) {
-        const n = normAirport(ap);
-        if (!n) continue;
-        const re = new RegExp("\\b(?:" + n + (n.length === 3 ? "|K" + n : n[0] === "K" ? "|" + n.slice(1) : "") + ")\\b");
-        if (re.test(upper)) { out.airport = n; break; }
-      }
+    // Airport, most to least reliable: an airport the flight log knows,
+    // anywhere in the text; a K-prefixed code in a window after a
+    // location-ish label; a bare code right after that label; any KXXX.
+    for (const ap of opts.knownAirports || []) {
+      const n = normAirport(ap);
+      if (!n) continue;
+      const re = new RegExp("\\b(?:" + n + (n.length === 3 ? "|K" + n : n[0] === "K" ? "|" + n.slice(1) : "") + ")\\b");
+      if (re.test(upper)) { out.airport = n; break; }
+    }
+    const locLabels = /location|airport|delivered (?:at|to)|station|icao|into[- ]plane/gi;
+    while (!out.airport && (m = locLabels.exec(text))) {
+      const win = text.slice(m.index + m[0].length, m.index + m[0].length + 200);
+      const k = win.match(/\bK[A-Z]{3}\b/);
+      if (k) { out.airport = k[0]; break; }
+      const near = win.match(/^[:\s]*"?([A-Z]{3,4})\b/);
+      if (near && !AIRPORT_STOPWORDS.has(near[1])) { out.airport = near[1]; break; }
     }
     if (!out.airport) {
       m = upper.match(/\bK[A-Z]{3}\b/);
@@ -163,28 +179,58 @@
         text.match(/(?:quantity|qty|volume)[:\s]*([\d,]+(?:\.\d+)?)/i);
     if (m) out.gallons = parseAmount(m[1]);
 
-    // Prefer amounts on lines that say "total"; take the largest so line-item
-    // subtotals (fuel, fees, taxes) don't beat the invoice total.
+    // Amounts near a payable-ish label, largest wins so line-item subtotals
+    // (fuel, fees, taxes) don't beat the invoice total. World Fuel prints no
+    // dollar signs ("USD 660.47") and says "PLEASE REMIT THIS AMOUNT", so
+    // accept bare amounts and search a window past each label.
+    const amountRe = /(?<![\d.])\$?\s*(\d{1,3}(?:,\d{3})*\.\d{2})(?!\d)/g;
+    const totalLabels = /total|remit this amount|invoice amount|amount due|balance due/gi;
     let best = null;
-    for (const line of text.split(/\n/)) {
-      if (!/total|amount due|balance due/i.test(line)) continue;
-      for (const am of line.matchAll(/\$?\s*([\d,]+\.\d{2})\b/g)) {
+    while ((m = totalLabels.exec(text))) {
+      const win = text.slice(m.index, m.index + 120);
+      for (const am of win.matchAll(amountRe)) {
         const v = parseAmount(am[1]);
         if (best === null || v > best) best = v;
       }
     }
     if (best === null) {
-      for (const am of text.matchAll(/\$\s*([\d,]+\.\d{2})\b/g)) {
+      for (const am of text.matchAll(amountRe)) {
         const v = parseAmount(am[1]);
         if (best === null || v > best) best = v;
       }
     }
     out.total = best;
 
-    m = text.match(/invoice\s*(?:no\.?|number|num|#)?[:\s]+([A-Z0-9][A-Z0-9-]{3,})/i);
-    if (m && !/^(date|total)/i.test(m[1])) out.invoiceNumber = m[1];
+    // World Fuel invoice numbers look like 28280400-21101 and sit a few cells
+    // after the "INVOICE NO." header (past the customer number, which has no
+    // dash) — prefer the dashed form in a window, then same-line adjacency.
+    m = text.match(/invoice\s*(?:no\.?|number|num|#)[\s\S]{0,120}?(\d{4,}-\d{2,})/i);
+    if (m) out.invoiceNumber = m[1];
+    else {
+      m = text.match(/invoice\s*(?:no\.?|number|num|#)?[:\s]+([A-Z0-9][A-Z0-9-]{3,})/i);
+      if (m && !/^(date|total|invoice|page)/i.test(m[1])) out.invoiceNumber = m[1];
+    }
 
     return out;
+  }
+
+  const AIRPORT_STOPWORDS = new Set(["USD", "USG", "GAL", "LLC", "INC", "FBO", "NET", "DUE", "TAX", "QTY", "THE", "AND", "FOR", "PAGE", "ACH", "ABA", "USA"]);
+
+  function earliestDate(text) {
+    const patterns = [
+      /\d{4}-\d{1,2}-\d{1,2}/g,
+      /\d{1,2}\/\d{1,2}\/\d{2,4}/g,
+      /\d{1,2}[- ][A-Za-z]{3}[A-Za-z]*[-, ]+\d{2,4}/g,
+      /[A-Za-z]{3}[a-z]*\.?\s+\d{1,2},?\s+\d{4}/g,
+    ];
+    let min = null;
+    for (const re of patterns) {
+      for (const m of text.matchAll(re)) {
+        const d = parseDateLoose(m[0]);
+        if (d && (min === null || d < min)) min = d;
+      }
+    }
+    return min;
   }
 
   // ---------- matching ----------
