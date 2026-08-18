@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fuel Bill Splitter</title>
+<style>
+  :root {
+    --ink: #1c2733;
+    --muted: #5b6b7b;
+    --line: #d8dfe6;
+    --bg: #f2f5f8;
+    --card: #ffffff;
+    --accent: #0b5fa5;
+    --ok: #1e7d3c;
+    --warn: #a05a00;
+    --bad: #b02a2a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 1060px; margin: 0 auto; padding: 16px 16px 64px; }
+  h1 { font-size: 24px; margin: 12px 0 2px; }
+  h2 { font-size: 17px; margin: 0 0 10px; }
+  .sub { color: var(--muted); margin: 0 0 18px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 16px; margin-bottom: 16px;
+  }
+  .step { display: inline-block; background: var(--accent); color: #fff; border-radius: 50%;
+    width: 24px; height: 24px; text-align: center; line-height: 24px; font-size: 13px; margin-right: 8px; }
+  label { font-size: 13px; color: var(--muted); display: block; margin-bottom: 2px; }
+  input, select, textarea, button {
+    font: inherit; color: inherit; border: 1px solid var(--line); border-radius: 6px;
+    padding: 6px 8px; background: #fff;
+  }
+  input:focus, select:focus, textarea:focus { outline: 2px solid #9cc3e0; }
+  textarea { width: 100%; min-height: 90px; }
+  button { cursor: pointer; background: #f6f8fa; }
+  button:hover { background: #eceff2; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.primary:hover { background: #0a538f; }
+  button.danger { color: var(--bad); }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+  .tablewrap { overflow-x: auto; max-height: 420px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+  th { position: sticky; top: 0; background: #f6f8fa; z-index: 1; font-weight: 600; }
+  td input, td select { padding: 3px 5px; font-size: 13px; max-width: 130px; }
+  td input.num { width: 84px; text-align: right; }
+  .badge { display: inline-block; border-radius: 12px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .badge.auto { background: #e2f2e6; color: var(--ok); }
+  .badge.review { background: #fdf0dd; color: var(--warn); }
+  .badge.unmatched { background: #fbe3e3; color: var(--bad); }
+  .badge.manual { background: #e3ecfb; color: var(--accent); }
+  .drop {
+    border: 2px dashed var(--line); border-radius: 10px; padding: 22px; text-align: center;
+    color: var(--muted); margin-bottom: 10px; background: #fafcfe;
+  }
+  .drop.over { border-color: var(--accent); background: #eef5fb; }
+  .hint { font-size: 13px; color: var(--muted); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .chip { display: flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; background: #fafcfe; font-size: 13px; }
+  .money { text-align: right; font-variant-numeric: tabular-nums; }
+  .totalrow td { font-weight: 700; border-top: 2px solid var(--ink); }
+  details.paste { margin-top: 8px; }
+  #toast {
+    position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+    background: var(--ink); color: #fff; padding: 9px 16px; border-radius: 8px;
+    opacity: 0; transition: opacity .25s; pointer-events: none; max-width: 90%;
+  }
+  #toast.show { opacity: 1; }
+  .toolbar { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; margin-bottom: 8px; }
+  @media print {
+    body { background: #fff; }
+    .no-print, .toolbar { display: none !important; }
+    .card { border: none; padding: 0; }
+    .tablewrap { max-height: none; overflow: visible; border: none; }
+    th { position: static; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <div class="no-print">
+    <h1>Fuel Bill Splitter</h1>
+    <p class="sub">Match World Fuel invoices to Airplane Manager flight legs, and split fuel cost by
+      who was flying. Everything runs in this browser tab — nothing is uploaded anywhere.</p>
+
+    <div class="card" id="settingsCard">
+      <h2>Setup</h2>
+      <div class="row">
+        <div>
+          <label>Aircraft (tail numbers)</label>
+          <div id="aircraftList"></div>
+          <button id="addAircraft" type="button">+ aircraft</button>
+        </div>
+        <div style="flex:1; min-width: 260px;">
+          <label>Families / owners (comma separated)</label>
+          <input id="familiesInput" style="width:100%" placeholder="Smith, Jones, Miller, Davis">
+          <div class="hint">Fuel on a leg is billed to the family flying that leg — the group's
+            uplift-goes-to-the-trip convention.</div>
+        </div>
+        <div>
+          <label>Data</label>
+          <button id="saveBackup" type="button">Save backup</button>
+          <button id="loadBackup" type="button">Load backup</button>
+          <button id="clearAll" type="button" class="danger">Clear all</button>
+          <input id="backupFile" type="file" accept=".json" hidden>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="step">1</span>Flight log (Airplane Manager export)</h2>
+      <div class="row">
+        <div>
+          <label>CSV export (Excel exports: open and Save As → CSV)</label>
+          <input id="legsFile" type="file" accept=".csv,.txt,text/csv">
+        </div>
+      </div>
+      <details class="paste">
+        <summary class="hint">…or paste CSV text</summary>
+        <textarea id="legsPaste" placeholder="Date,Aircraft,From,To,Passenger&#10;06/03/2026,N45XX,KAUS,KASE,Smith"></textarea>
+        <button id="legsPasteBtn" type="button">Load pasted CSV</button>
+      </details>
+      <div id="mappingArea" hidden>
+        <p class="hint" style="margin-bottom:4px">Check which columns hold each field:</p>
+        <div class="row" id="mappingRow"></div>
+        <button id="applyMapping" type="button" class="primary" style="margin-top:8px">Use these columns</button>
+      </div>
+      <div id="ownerMapArea" hidden>
+        <p class="hint" style="margin:10px 0 0">Who is each of these? (remembered for next time)</p>
+        <div class="chips" id="ownerChips"></div>
+      </div>
+      <div id="legsArea" hidden style="margin-top:12px">
+        <div class="hint" id="legsCount"></div>
+        <div class="tablewrap"><table id="legsTable"></table></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="step">2</span>Fuel bills (World Fuel invoices)</h2>
+      <div class="drop" id="dropZone">
+        Drop PDF invoices here, or
+        <button id="pickPdfs" type="button">choose files</button>
+        <input id="pdfFiles" type="file" accept=".pdf,application/pdf" multiple hidden>
+        <div class="hint">Parsed fields show below for checking — nothing is billed straight off a PDF.</div>
+      </div>
+      <details class="paste">
+        <summary class="hint">…or paste invoice text / add a line by hand</summary>
+        <textarea id="invoicePaste" placeholder="Paste the text of one invoice here"></textarea>
+        <button id="invoicePasteBtn" type="button">Extract from pasted text</button>
+        <button id="addManual" type="button">Add blank line</button>
+      </details>
+      <div id="fuelArea" hidden style="margin-top:12px">
+        <div class="hint" id="fuelCount"></div>
+        <div class="tablewrap"><table id="fuelTable"></table></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" id="statementCard" hidden>
+    <h2 class="no-print"><span class="step">3</span>Statement</h2>
+    <div class="toolbar">
+      <select id="monthSelect"></select>
+      <button id="downloadCsv" type="button" class="primary">Download CSV</button>
+      <button id="printBtn" type="button">Print</button>
+    </div>
+    <div id="statementBody"></div>
+  </div>
+</main>
+<div id="toast"></div>
+
+<script src="match.js"></script>
+<script src="pdf-text.js"></script>
+<script>
+"use strict";
+const FM = FuelMatch;
+const STORE_KEY = "fuelsplit-v1";
+
+let state = {
+  aircraft: [{ tail: "", label: "Lear 45" }, { tail: "", label: "CJ1+" }],
+  families: ["Family 1", "Family 2", "Family 3", "Family 4"],
+  ownerMap: {},          // lowercased owner string from the log -> family name
+  legs: [],              // {date, tail, from, to, owner, familyOverride}
+  fuel: [],              // {id, date, tail, airport, gallons, total, invoiceNumber,
+                         //  source, matchIndex, matchStatus, familyOverride}
+  pendingRows: null,     // parsed CSV waiting for column confirmation
+  colMap: null,
+};
+let nextId = 1;
+
+// ---------- persistence ----------
+
+function save() {
+  const { pendingRows, ...rest } = state;
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(rest)); } catch (e) {}
+}
+function load() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (!raw) return;
+    const s = JSON.parse(raw);
+    Object.assign(state, s, { pendingRows: null });
+    for (const f of state.fuel) nextId = Math.max(nextId, (f.id || 0) + 1);
+  } catch (e) {}
+}
+
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => t.classList.remove("show"), 3500);
+}
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g,
+  (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const money = (v) => "$" + (v || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+// ---------- settings ----------
+
+function renderSettings() {
+  const list = $("aircraftList");
+  list.innerHTML = "";
+  state.aircraft.forEach((a, i) => {
+    const div = document.createElement("div");
+    div.className = "row";
+    div.style.marginBottom = "6px";
+    div.innerHTML =
+      '<input style="width:110px" placeholder="N123AB" value="' + esc(a.tail) + '" data-k="tail">' +
+      '<input style="width:110px" placeholder="Label" value="' + esc(a.label) + '" data-k="label">' +
+      '<button type="button" class="danger" title="Remove">×</button>';
+    div.querySelectorAll("input").forEach((inp) => inp.addEventListener("change", () => {
+      state.aircraft[i][inp.dataset.k] = inp.value.trim();
+      save(); rematchAll(); renderFuel(); renderStatement();
+    }));
+    div.querySelector("button").addEventListener("click", () => {
+      state.aircraft.splice(i, 1); save(); renderSettings();
+    });
+    list.appendChild(div);
+  });
+  $("familiesInput").value = state.families.join(", ");
+}
+$("addAircraft").addEventListener("click", () => {
+  state.aircraft.push({ tail: "", label: "" }); save(); renderSettings();
+});
+$("familiesInput").addEventListener("change", () => {
+  state.families = $("familiesInput").value.split(",").map((s) => s.trim()).filter(Boolean);
+  if (!state.families.length) state.families = ["Family 1"];
+  save(); renderOwnerChips(); renderLegs(); renderFuel(); renderStatement();
+});
+
+// ---------- flight log ----------
+
+function knownTails() {
+  const t = state.aircraft.map((a) => a.tail).filter(Boolean);
+  for (const leg of state.legs) if (leg.tail) t.push(leg.tail);
+  return [...new Set(t.map(FM.normTail))];
+}
+function knownAirports() {
+  const set = new Set();
+  for (const leg of state.legs) {
+    if (leg.from) set.add(FM.normAirport(leg.from));
+    if (leg.to) set.add(FM.normAirport(leg.to));
+  }
+  return [...set];
+}
+
+function loadLegsCSV(text) {
+  const rows = FM.parseCSV(text);
+  if (rows.length < 2) { toast("That file has no data rows."); return; }
+  state.pendingRows = rows;
+  const guess = FM.detectColumns(rows[0]);
+  renderMapping(rows[0], guess);
+}
+
+function renderMapping(header, guess) {
+  const fields = [["date", "Date"], ["tail", "Tail / aircraft"], ["from", "From"], ["to", "To"], ["owner", "Owner / passenger"]];
+  const rowEl = $("mappingRow");
+  rowEl.innerHTML = "";
+  for (const [key, label] of fields) {
+    const div = document.createElement("div");
+    div.innerHTML = "<label>" + label + "</label><select data-k='" + key + "'>" +
+      '<option value="-1">— none —</option>' +
+      header.map((h, i) => '<option value="' + i + '"' + (guess[key] === i ? " selected" : "") + ">" + esc(h || "(column " + (i + 1) + ")") + "</option>").join("") +
+      "</select>";
+    rowEl.appendChild(div);
+  }
+  $("mappingArea").hidden = false;
+}
+
+$("applyMapping").addEventListener("click", () => {
+  const map = {};
+  $("mappingRow").querySelectorAll("select").forEach((s) => { map[s.dataset.k] = +s.value; });
+  if (map.date < 0 || map.tail < 0) { toast("Date and Tail columns are required."); return; }
+  const rows = state.pendingRows;
+  const legs = [];
+  let skipped = 0;
+  for (const r of rows.slice(1)) {
+    const date = FM.parseDateLoose(r[map.date]);
+    const tail = FM.normTail(r[map.tail]);
+    if (!date || !tail) { skipped++; continue; }
+    legs.push({
+      date, tail,
+      from: map.from >= 0 ? FM.normAirport(r[map.from]) : "",
+      to: map.to >= 0 ? FM.normAirport(r[map.to]) : "",
+      owner: map.owner >= 0 ? String(r[map.owner] || "").trim() : "",
+      familyOverride: "",
+    });
+  }
+  legs.sort((a, b) => (a.date < b.date ? -1 : 1));
+  state.legs = legs;
+  state.colMap = map;
+  state.pendingRows = null;
+  // A new log invalidates old manual leg choices — indexes moved.
+  for (const f of state.fuel) { f.matchStatus = ""; f.matchIndex = -1; }
+  $("mappingArea").hidden = true;
+  save();
+  toast("Loaded " + legs.length + " legs" + (skipped ? " (" + skipped + " rows skipped: no date/tail)" : ""));
+  rematchAll();
+  renderOwnerChips(); renderLegs(); renderFuel(); renderStatement();
+});
+
+$("legsFile").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (file) loadLegsCSV(await file.text());
+  e.target.value = "";
+});
+$("legsPasteBtn").addEventListener("click", () => {
+  if ($("legsPaste").value.trim()) loadLegsCSV($("legsPaste").value);
+});
+
+function legFamily(leg) {
+  return leg.familyOverride || state.ownerMap[leg.owner.toLowerCase()] || "";
+}
+
+function renderOwnerChips() {
+  const owners = [...new Set(state.legs.map((l) => l.owner).filter(Boolean))];
+  $("ownerMapArea").hidden = !owners.length;
+  const chips = $("ownerChips");
+  chips.innerHTML = "";
+  for (const owner of owners) {
+    const chip = document.createElement("span");
+    chip.className = "chip";
+    const current = state.ownerMap[owner.toLowerCase()] || "";
+    chip.innerHTML = "<b>" + esc(owner) + "</b><select>" +
+      '<option value="">?</option>' +
+      state.families.map((f) => '<option' + (f === current ? " selected" : "") + ">" + esc(f) + "</option>").join("") +
+      "</select>";
+    chip.querySelector("select").addEventListener("change", (e) => {
+      if (e.target.value) state.ownerMap[owner.toLowerCase()] = e.target.value;
+      else delete state.ownerMap[owner.toLowerCase()];
+      save(); renderLegs(); renderFuel(); renderStatement();
+    });
+    chips.appendChild(chip);
+  }
+}
+
+function renderLegs() {
+  $("legsArea").hidden = !state.legs.length;
+  if (!state.legs.length) return;
+  $("legsCount").textContent = state.legs.length + " legs loaded.";
+  const t = $("legsTable");
+  t.innerHTML = "<tr><th>Date</th><th>Tail</th><th>Route</th><th>Owner (from log)</th><th>Family</th></tr>";
+  state.legs.forEach((leg, i) => {
+    const tr = document.createElement("tr");
+    const fam = legFamily(leg);
+    tr.innerHTML =
+      "<td>" + esc(leg.date) + "</td><td>" + esc(leg.tail) + "</td>" +
+      "<td>" + esc(leg.from || "?") + " → " + esc(leg.to || "?") + "</td>" +
+      "<td>" + esc(leg.owner) + "</td>" +
+      "<td><select>" +
+        '<option value="">' + (state.ownerMap[leg.owner.toLowerCase()] ? esc(state.ownerMap[leg.owner.toLowerCase()]) + " (auto)" : "—") + "</option>" +
+        state.families.map((f) => '<option value="' + esc(f) + '"' + (leg.familyOverride === f ? " selected" : "") + ">" + esc(f) + "</option>").join("") +
+      "</select>" + "</td>";
+    tr.querySelector("select").addEventListener("change", (e) => {
+      leg.familyOverride = e.target.value;
+      save(); renderFuel(); renderStatement();
+    });
+    t.appendChild(tr);
+  });
+}
+
+// ---------- fuel entries ----------
+
+function rematch(entry) {
+  if (entry.matchStatus === "manual") return;
+  const m = FM.matchFuelToLegs(entry, state.legs);
+  entry.matchIndex = m.index;
+  entry.matchStatus = m.status;
+}
+function rematchAll() { for (const f of state.fuel) rematch(f); save(); }
+
+function addFuelFromText(text, source) {
+  const fields = FM.extractInvoiceFields(text, { knownTails: knownTails(), knownAirports: knownAirports() });
+  const entry = {
+    id: nextId++,
+    date: fields.date || "",
+    tail: fields.tail || "",
+    airport: fields.airport || "",
+    gallons: fields.gallons,
+    total: fields.total,
+    invoiceNumber: fields.invoiceNumber,
+    source: source,
+    matchIndex: -1, matchStatus: "", familyOverride: "",
+  };
+  rematch(entry);
+  state.fuel.push(entry);
+  return entry;
+}
+
+async function handlePdfFiles(files) {
+  let added = 0, failed = [];
+  for (const file of files) {
+    try {
+      const res = await extractPdfText(await file.arrayBuffer());
+      if (res.ok) { addFuelFromText(res.text, file.name); added++; }
+      else failed.push(file.name + ": " + res.reason);
+    } catch (e) {
+      failed.push(file.name + ": couldn't read file");
+    }
+  }
+  save(); renderFuel(); renderStatement();
+  if (failed.length) toast(added + " parsed. " + failed.join(" "));
+  else if (added) toast(added + " invoice" + (added > 1 ? "s" : "") + " parsed — check the fields below.");
+}
+
+const dz = $("dropZone");
+dz.addEventListener("dragover", (e) => { e.preventDefault(); dz.classList.add("over"); });
+dz.addEventListener("dragleave", () => dz.classList.remove("over"));
+dz.addEventListener("drop", (e) => {
+  e.preventDefault(); dz.classList.remove("over");
+  handlePdfFiles([...e.dataTransfer.files].filter((f) => /pdf$/i.test(f.name) || f.type === "application/pdf"));
+});
+$("pickPdfs").addEventListener("click", () => $("pdfFiles").click());
+$("pdfFiles").addEventListener("change", (e) => { handlePdfFiles([...e.target.files]); e.target.value = ""; });
+$("invoicePasteBtn").addEventListener("click", () => {
+  const text = $("invoicePaste").value.trim();
+  if (!text) return;
+  addFuelFromText(text, "pasted text");
+  $("invoicePaste").value = "";
+  save(); renderFuel(); renderStatement();
+});
+$("addManual").addEventListener("click", () => {
+  state.fuel.push({ id: nextId++, date: "", tail: "", airport: "", gallons: null, total: null,
+    invoiceNumber: "", source: "manual", matchIndex: -1, matchStatus: "unmatched", familyOverride: "" });
+  save(); renderFuel();
+});
+
+function entryFamily(e) {
+  if (e.familyOverride) return e.familyOverride;
+  const leg = e.matchIndex >= 0 ? state.legs[e.matchIndex] : null;
+  return (leg && legFamily(leg)) || "";
+}
+
+function legLabel(leg) {
+  return leg.date + " " + (leg.from || "?") + "→" + (leg.to || "?") + " " + leg.tail +
+    (leg.owner ? " (" + leg.owner + ")" : "");
+}
+
+function renderFuel() {
+  $("fuelArea").hidden = !state.fuel.length;
+  $("statementCard").hidden = !state.fuel.length;
+  if (!state.fuel.length) return;
+  const review = state.fuel.filter((f) => f.matchStatus === "review" || f.matchStatus === "unmatched").length;
+  $("fuelCount").textContent = state.fuel.length + " fuel line" + (state.fuel.length > 1 ? "s" : "") +
+    (review ? " — " + review + " need" + (review === 1 ? "s" : "") + " a look" : " — all matched");
+  const t = $("fuelTable");
+  t.innerHTML = "<tr><th>Status</th><th>Date</th><th>Tail</th><th>Airport</th><th>Gallons</th>" +
+    "<th>Total $</th><th>Invoice #</th><th>Matched leg</th><th>Family</th><th>Source</th><th></th></tr>";
+  const tailOpts = knownTails();
+  state.fuel.forEach((f) => {
+    const tr = document.createElement("tr");
+    const fam = entryFamily(f);
+    tr.innerHTML =
+      '<td><span class="badge ' + (f.matchStatus || "unmatched") + '">' + (f.matchStatus || "unmatched") + "</span></td>" +
+      '<td><input type="date" value="' + esc(f.date) + '" data-k="date"></td>' +
+      '<td><input list="tails" style="width:90px" value="' + esc(f.tail) + '" data-k="tail"></td>' +
+      '<td><input style="width:70px" value="' + esc(f.airport) + '" data-k="airport"></td>' +
+      '<td><input class="num" type="number" step="0.1" value="' + (f.gallons == null ? "" : f.gallons) + '" data-k="gallons"></td>' +
+      '<td><input class="num" type="number" step="0.01" value="' + (f.total == null ? "" : f.total) + '" data-k="total"></td>' +
+      '<td><input style="width:100px" value="' + esc(f.invoiceNumber) + '" data-k="invoiceNumber"></td>' +
+      "<td><select data-leg>" +
+        '<option value="-1">— none —</option>' +
+        state.legs.map((leg, i) => '<option value="' + i + '"' + (f.matchIndex === i ? " selected" : "") + ">" + esc(legLabel(leg)) + "</option>").join("") +
+      "</select></td>" +
+      "<td><select data-fam>" +
+        '<option value="">' + (fam ? esc(fam) + " (auto)" : "—") + "</option>" +
+        state.families.map((n) => '<option value="' + esc(n) + '"' + (f.familyOverride === n ? " selected" : "") + ">" + esc(n) + "</option>").join("") +
+      "</select></td>" +
+      '<td class="hint">' + esc(f.source) + "</td>" +
+      '<td><button type="button" class="danger" title="Delete">×</button></td>';
+    tr.querySelectorAll("input").forEach((inp) => inp.addEventListener("change", () => {
+      const k = inp.dataset.k;
+      f[k] = (k === "gallons" || k === "total") ? (inp.value === "" ? null : +inp.value) : inp.value.trim();
+      if (k === "date" || k === "tail" || k === "airport") { f.matchStatus = ""; rematch(f); }
+      save(); renderFuel(); renderStatement();
+    }));
+    tr.querySelector("[data-leg]").addEventListener("change", (e) => {
+      f.matchIndex = +e.target.value;
+      f.matchStatus = f.matchIndex >= 0 ? "manual" : "unmatched";
+      save(); renderFuel(); renderStatement();
+    });
+    tr.querySelector("[data-fam]").addEventListener("change", (e) => {
+      f.familyOverride = e.target.value;
+      save(); renderFuel(); renderStatement();
+    });
+    tr.querySelector("button").addEventListener("click", () => {
+      state.fuel = state.fuel.filter((x) => x !== f);
+      save(); renderFuel(); renderStatement();
+    });
+    t.appendChild(tr);
+  });
+  let dl = document.getElementById("tails");
+  if (!dl) { dl = document.createElement("datalist"); dl.id = "tails"; document.body.appendChild(dl); }
+  dl.innerHTML = tailOpts.map((x) => "<option>" + esc(x) + "</option>").join("");
+}
+
+// ---------- statement ----------
+
+function statementData() {
+  const legsWithFamily = state.legs.map((leg) => ({ ...leg, family: legFamily(leg) || "Unassigned" }));
+  const month = $("monthSelect").value || null;
+  return FM.buildStatement(state.fuel, legsWithFamily, month);
+}
+
+function renderStatement() {
+  if (!state.fuel.length) { $("statementCard").hidden = true; return; }
+  $("statementCard").hidden = false;
+  const sel = $("monthSelect");
+  const months = [...new Set(state.fuel.map((f) => (f.date || "").slice(0, 7)).filter((m) => m.length === 7))].sort().reverse();
+  const current = sel.value;
+  sel.innerHTML = '<option value="">All dates</option>' + months.map((m) => "<option" + (m === current ? " selected" : "") + ">" + m + "</option>").join("");
+  const st = statementData();
+  const names = Object.keys(st.families).sort();
+  let html = "<h2>Fuel cost by family" + (sel.value ? " — " + sel.value : "") + "</h2>";
+  html += '<div class="tablewrap" style="max-height:none"><table><tr><th>Family</th><th>Uplifts</th><th class="money">Gallons</th><th class="money">Total</th></tr>';
+  let grand = 0, grandGal = 0, grandCount = 0;
+  for (const n of names) {
+    const f = st.families[n];
+    grand += f.total; grandGal += f.gallons; grandCount += f.count;
+    html += "<tr><td>" + esc(n) + "</td><td>" + f.count + '</td><td class="money">' + f.gallons.toLocaleString() +
+      '</td><td class="money">' + money(f.total) + "</td></tr>";
+  }
+  html += '<tr class="totalrow"><td>Total</td><td>' + grandCount + '</td><td class="money">' + grandGal.toLocaleString() +
+    '</td><td class="money">' + money(grand) + "</td></tr></table></div>";
+  html += '<h2 style="margin-top:16px">Detail</h2>';
+  html += '<div class="tablewrap" style="max-height:none"><table><tr><th>Date</th><th>Family</th><th>Tail</th><th>Airport</th>' +
+    '<th class="money">Gallons</th><th class="money">Total</th><th>Invoice #</th><th>Matched leg</th></tr>';
+  for (const l of st.lines) {
+    html += "<tr><td>" + esc(l.date) + "</td><td>" + esc(l.family) + "</td><td>" + esc(l.tail) + "</td><td>" + esc(l.airport) +
+      '</td><td class="money">' + (l.gallons || "") + '</td><td class="money">' + money(l.total) +
+      "</td><td>" + esc(l.invoiceNumber) + "</td><td>" + esc(l.leg) + "</td></tr>";
+  }
+  html += "</table></div>";
+  const unassigned = st.families["Unassigned"];
+  if (unassigned) {
+    html += '<p class="hint no-print">⚠ ' + money(unassigned.total) + " across " + unassigned.count +
+      " line(s) has no family yet — fix the matches or set a family in step 2.</p>";
+  }
+  $("statementBody").innerHTML = html;
+}
+$("monthSelect").addEventListener("change", renderStatement);
+$("downloadCsv").addEventListener("click", () => {
+  const csv = FM.statementCSV(statementData());
+  const month = $("monthSelect").value || "all";
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+  a.download = "fuel-statement-" + month + ".csv";
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+$("printBtn").addEventListener("click", () => window.print());
+
+// ---------- backup ----------
+
+$("saveBackup").addEventListener("click", () => {
+  const { pendingRows, ...rest } = state;
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(rest, null, 2)], { type: "application/json" }));
+  a.download = "fuel-split-backup.json";
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+$("loadBackup").addEventListener("click", () => $("backupFile").click());
+$("backupFile").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  try {
+    const s = JSON.parse(await file.text());
+    if (!Array.isArray(s.fuel) || !Array.isArray(s.legs)) throw new Error("bad file");
+    Object.assign(state, s, { pendingRows: null });
+    for (const f of state.fuel) nextId = Math.max(nextId, (f.id || 0) + 1);
+    save(); renderAll();
+    toast("Backup loaded.");
+  } catch (err) { toast("That file isn't a fuel-split backup."); }
+  e.target.value = "";
+});
+$("clearAll").addEventListener("click", () => {
+  if (!confirm("Clear all legs, fuel lines, and settings on this device?")) return;
+  localStorage.removeItem(STORE_KEY);
+  location.reload();
+});
+
+function renderAll() {
+  renderSettings(); renderOwnerChips(); renderLegs(); renderFuel(); renderStatement();
+}
+load();
+renderAll();
+</script>
+</body>
+</html>
