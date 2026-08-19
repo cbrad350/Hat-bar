@@ -266,6 +266,16 @@
     padding: 13px; border-radius: 9px;
   }
   .lock-msg { min-height: 24px; margin-top: 14px; color: #ff9b8a; font-style: italic; font-size: 15px; }
+  .lock-forgot {
+    background: none; border: none; color: #8fa3b5; font-size: 13px; margin-top: 6px;
+    text-decoration: underline; cursor: pointer; min-height: 32px;
+  }
+  .forgot-panel { margin-top: 10px; font-size: 14px; color: #b8c4d0; max-width: 40ch; margin-left: auto; margin-right: auto; }
+  .forgot-panel p { margin: 0 0 10px; }
+  .forgot-mail {
+    display: inline-block; border: 1px solid #3c4f63; border-radius: 8px; padding: 10px 18px;
+    color: var(--amber); text-decoration: none; font-weight: 600; background: rgba(8,12,17,.6);
+  }
   .lock.denied .lock-inner { animation: shake .5s; }
   @keyframes shake {
     10%, 90% { transform: translateX(-2px); } 20%, 80% { transform: translateX(4px); }
@@ -329,6 +339,11 @@
       <button id="engage" type="submit" class="primary">Engage</button>
     </form>
     <div id="lockMsg" class="lock-msg" role="alert"></div>
+    <button type="button" id="forgot" class="lock-forgot">Forgot your access code?</button>
+    <div id="forgotPanel" class="forgot-panel" hidden>
+      <p>Radio the tower — this opens an email to the squadron admin requesting your code. He'll send it back.</p>
+      <a class="forgot-mail" id="forgotMail" href="#">📡 Radio the tower</a>
+    </div>
   </div>
 </div>
 <header class="mast no-print">
@@ -473,6 +488,17 @@
           uplift-goes-to-the-trip convention.</div>
       </div>
       <div>
+        <label>Access code (this phone)</label>
+        <div class="row" style="gap:8px">
+          <input id="newCode" type="password" autocomplete="new-password" placeholder="new code" style="width:140px">
+          <button id="setCode" type="button">Set code</button>
+          <button id="resetCode" type="button">Standard only</button>
+        </div>
+        <div class="hint">the standard code always works as the master key</div>
+        <label style="margin-top:12px">Recovery email (“forgot code” goes here)</label>
+        <input id="recoveryEmail" type="email" style="width:240px" placeholder="emailchrisb@gmail.com">
+      </div>
+      <div>
         <label>Data</label>
         <button id="saveBackup" type="button">Save backup</button>
         <button id="loadBackup" type="button">Load backup</button>
@@ -552,12 +578,31 @@
     }
     setTimeout(lift, t + 200);
   }
+  // Forgot-code panel: the request email goes to the recovery address set in
+  // Settings (a static page can't send mail itself — it opens the mail app
+  // with the request written, addressed to the admin).
+  document.getElementById("forgot").addEventListener("click", () => {
+    const panel = document.getElementById("forgotPanel");
+    panel.hidden = !panel.hidden;
+    let em = "emailchrisb@gmail.com";
+    try { em = localStorage.getItem("fbs-recovery-email") || em; } catch (e) {}
+    document.getElementById("forgotMail").href = "mailto:" + em +
+      "?subject=" + encodeURIComponent("Access code request — Fuel Bill Splitter") +
+      "&body=" + encodeURIComponent("Tower, this is Top Gun Kelley, requesting the access code for a flyby.");
+  });
+
   // Everything here stays synchronous: iOS only allows sound that starts
   // inside the tap itself, and an await in between forfeits that.
   form.addEventListener("submit", (e) => {
     e.preventDefault();
     const v = document.getElementById("pw").value;
-    if (djb2(v) !== DJB2) {
+    let stored = null;
+    try { stored = localStorage.getItem("fbs-code-hash"); } catch (err) {}
+    // A code set in Settings works alongside the standard code — the standard
+    // one stays as the master key so a forgotten custom code can't lock the
+    // records away.
+    const good = djb2(v) === DJB2 || (stored && djb2(v) === stored);
+    if (!good) {
       msg.textContent = denials[denyN++ % denials.length];
       lock.classList.remove("denied");
       void lock.offsetWidth;
@@ -666,9 +711,34 @@ function renderSettings() {
     list.appendChild(div);
   });
   $("familiesInput").value = state.families.join(", ");
+  try { $("recoveryEmail").value = localStorage.getItem("fbs-recovery-email") || ""; } catch (e) {}
 }
 $("addAircraft").addEventListener("click", () => {
   state.aircraft.push({ tail: "", label: "" }); save(); renderSettings();
+});
+
+// Access code + recovery email live in localStorage (device-level), so the
+// lock screen can read them before the app state loads.
+function djb2m(s) { let h = 5381; for (const c of s) h = ((h * 33) ^ c.charCodeAt(0)) >>> 0; return h.toString(16); }
+$("setCode").addEventListener("click", () => {
+  const v = $("newCode").value.trim();
+  if (v.length < 4) { toast("Code needs at least 4 characters."); return; }
+  try { localStorage.setItem("fbs-code-hash", djb2m(v)); } catch (e) {}
+  $("newCode").value = "";
+  toast("Access code set on this phone — the standard code still works as backup.");
+});
+$("resetCode").addEventListener("click", () => {
+  try { localStorage.removeItem("fbs-code-hash"); } catch (e) {}
+  toast("Back to the standard code only.");
+});
+$("recoveryEmail").addEventListener("change", (e) => {
+  const v = e.target.value.trim();
+  if (v && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) { toast("That doesn't look like an email address."); return; }
+  try {
+    if (v) localStorage.setItem("fbs-recovery-email", v);
+    else localStorage.removeItem("fbs-recovery-email");
+  } catch (err) {}
+  toast(v ? "Forgot-code requests now go to " + v : "Recovery email reset to the default.");
 });
 $("familiesInput").addEventListener("change", () => {
   state.families = $("familiesInput").value.split(",").map((s) => s.trim()).filter(Boolean);
