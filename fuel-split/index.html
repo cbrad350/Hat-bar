@@ -4,93 +4,195 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Fuel Bill Splitter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Yellowtail&display=swap">
 <style>
   :root {
-    --ink: #1c2733;
-    --muted: #5b6b7b;
-    --line: #d8dfe6;
-    --bg: #f2f5f8;
+    --navy: #182a3f;
+    --navy-2: #21374f;
+    --ink: #1d2833;
+    --muted: #5d6b78;
+    --line: #d3dae1;
+    --bg: #eef1f4;
     --card: #ffffff;
-    --accent: #0b5fa5;
-    --ok: #1e7d3c;
+    --amber: #e29c33;
+    --amber-deep: #c07f1b;
+    --amber-soft: #faf3e4;
+    --ok: #256d3f;
+    --ok-soft: #e2f1e7;
     --warn: #a05a00;
-    --bad: #b02a2a;
+    --warn-soft: #fbf0da;
+    --bad: #b3261e;
+    --bad-soft: #fbe5e3;
+    --display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+    --body: "Barlow", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   }
   * { box-sizing: border-box; }
   body {
     margin: 0; background: var(--bg); color: var(--ink);
-    font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font: 16px/1.5 var(--body);
   }
-  main { max-width: 1060px; margin: 0 auto; padding: 16px 16px 64px; }
-  h1 { font-size: 24px; margin: 12px 0 2px; }
-  h2 { font-size: 17px; margin: 0 0 10px; }
-  .sub { color: var(--muted); margin: 0 0 18px; }
+  /* Masthead: cockpit navy with a runway-centerline motif */
+  .mast {
+    position: relative; overflow: hidden;
+    background: var(--navy); color: #f2ede2; padding: 26px 16px 22px;
+    border-bottom: 6px solid var(--amber);
+    background-image: repeating-linear-gradient(90deg, transparent 0 34px, rgba(226,156,51,.35) 34px 58px);
+    background-size: 100% 3px; background-repeat: no-repeat; background-position: 0 calc(100% - 12px);
+  }
+  .mast-inner { max-width: 1060px; margin: 0 auto; position: relative; z-index: 1; }
+  .greeting {
+    font-family: "Yellowtail", "Snell Roundhand", "Brush Script MT", cursive;
+    font-size: 34px; line-height: 1.15; color: var(--amber);
+    transform: rotate(-2deg); transform-origin: left center;
+    text-shadow: 0 2px 0 rgba(0,0,0,.25); margin: 0 0 8px 2px;
+  }
+  .jet {
+    position: absolute; top: 14px; left: 0; width: 148px; height: auto; z-index: 0;
+    transform: translateX(-170px) translateY(26px) rotate(2deg);
+    animation: flyby 3.2s cubic-bezier(.33,.72,.38,1) .5s forwards;
+    filter: drop-shadow(0 3px 4px rgba(0,0,0,.35));
+  }
+  @keyframes flyby {
+    0%   { transform: translateX(-170px) translateY(26px) rotate(2deg); }
+    100% { transform: translateX(calc(100vw - 180px)) translateY(0) rotate(0deg); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .jet { animation: none; transform: translateX(calc(100vw - 180px)); }
+  }
+  @media (max-width: 640px) {
+    .greeting { font-size: 28px; padding-right: 98px; }
+    .wordmark { font-size: 28px; }
+    .jet { width: 104px; top: 6px; }
+    @keyframes flyby {
+      0%   { transform: translateX(-130px) translateY(20px) rotate(2deg); }
+      100% { transform: translateX(calc(100vw - 122px)) translateY(0) rotate(0deg); }
+    }
+    .card { padding: 14px; border-radius: 10px; }
+    .row { gap: 10px; }
+    .row > div { flex: 1 1 100%; }
+    button { width: auto; padding: 11px 16px; }
+    .toolbar button, .toolbar select { flex: 1 1 auto; }
+    h2 { font-size: 22px; }
+    .money { font-size: 14px; }
+  }
+  .wordmark {
+    font-family: var(--display); font-weight: 700; font-size: 34px; line-height: 1;
+    text-transform: uppercase; letter-spacing: .06em; color: #fff;
+  }
+  .wordmark .fuel { color: var(--amber); }
+  .tagline { margin-top: 6px; font-size: 13.5px; color: #b8c4d0; letter-spacing: .01em; }
+  main { max-width: 1060px; margin: 0 auto; padding: 20px 16px 64px; }
+  h2 {
+    font-family: var(--display); font-weight: 600; font-size: 21px; letter-spacing: .03em;
+    text-transform: uppercase; margin: 0 0 12px; color: var(--navy);
+    display: flex; align-items: center; gap: 9px;
+  }
   .card {
-    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
-    padding: 16px; margin-bottom: 16px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 18px; margin-bottom: 18px; box-shadow: 0 1px 2px rgba(24,42,63,.05);
   }
-  .step { display: inline-block; background: var(--accent); color: #fff; border-radius: 50%;
-    width: 24px; height: 24px; text-align: center; line-height: 24px; font-size: 13px; margin-right: 8px; }
-  label { font-size: 13px; color: var(--muted); display: block; margin-bottom: 2px; }
+  .step {
+    display: inline-flex; align-items: center; justify-content: center; flex: none;
+    background: var(--navy); color: var(--amber); border-radius: 4px;
+    width: 26px; height: 26px; font: 600 14px var(--mono);
+  }
+  label {
+    font-size: 11.5px; color: var(--muted); display: block; margin-bottom: 3px;
+    text-transform: uppercase; letter-spacing: .07em; font-weight: 600;
+  }
+  /* 16px inputs keep iOS Safari from auto-zooming on focus */
   input, select, textarea, button {
-    font: inherit; color: inherit; border: 1px solid var(--line); border-radius: 6px;
-    padding: 6px 8px; background: #fff;
+    font: inherit; font-size: 16px; color: inherit; border: 1px solid var(--line); border-radius: 8px;
+    padding: 9px 12px; background: #fff;
   }
-  input:focus, select:focus, textarea:focus { outline: 2px solid #9cc3e0; }
-  textarea { width: 100%; min-height: 90px; }
-  button { cursor: pointer; background: #f6f8fa; }
-  button:hover { background: #eceff2; }
-  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-  button.primary:hover { background: #0a538f; }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--amber); outline-offset: 1px; }
+  textarea { width: 100%; min-height: 100px; font-family: var(--mono); font-size: 16px; }
+  button { cursor: pointer; background: #f5f7f9; font-weight: 500; min-height: 44px; }
+  button:hover { background: #ebeef2; }
+  button.primary { background: var(--amber); border-color: var(--amber-deep); color: #241a08; font-weight: 600; }
+  button.primary:hover { background: var(--amber-deep); color: #fff; }
   button.danger { color: var(--bad); }
-  .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
-  .tablewrap { overflow-x: auto; max-height: 420px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; }
-  table { border-collapse: collapse; width: 100%; font-size: 14px; }
-  th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
-  th { position: sticky; top: 0; background: #f6f8fa; z-index: 1; font-weight: 600; }
-  td input, td select { padding: 3px 5px; font-size: 13px; max-width: 130px; }
-  td input.num { width: 84px; text-align: right; }
-  .badge { display: inline-block; border-radius: 12px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
-  .badge.auto { background: #e2f2e6; color: var(--ok); }
-  .badge.review { background: #fdf0dd; color: var(--warn); }
-  .badge.unmatched { background: #fbe3e3; color: var(--bad); }
-  .badge.manual { background: #e3ecfb; color: var(--accent); }
-  .drop {
-    border: 2px dashed var(--line); border-radius: 10px; padding: 22px; text-align: center;
-    color: var(--muted); margin-bottom: 10px; background: #fafcfe;
+  .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+  .tablewrap { overflow-x: auto; max-height: 420px; overflow-y: auto; border: 1px solid var(--line); border-radius: 9px; }
+  table { border-collapse: collapse; width: 100%; font-size: 15px; }
+  th, td { padding: 9px 10px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+  th {
+    position: sticky; top: 0; background: var(--navy-2); color: #cfd9e3; z-index: 1;
+    font: 600 10.5px var(--mono); text-transform: uppercase; letter-spacing: .09em;
   }
-  .drop.over { border-color: var(--accent); background: #eef5fb; }
+  td input, td select { padding: 6px 8px; font-size: 16px; max-width: 150px; min-height: 40px; }
+  td input.num { width: 100px; text-align: right; font-family: var(--mono); }
+  .badge {
+    display: inline-block; border-radius: 4px; padding: 2px 8px;
+    font: 600 10.5px var(--mono); text-transform: uppercase; letter-spacing: .08em;
+  }
+  .badge.auto { background: var(--ok-soft); color: var(--ok); }
+  .badge.review { background: var(--warn-soft); color: var(--warn); }
+  .badge.unmatched { background: var(--bad-soft); color: var(--bad); }
+  .badge.manual { background: #e6edf6; color: var(--navy); }
+  .drop {
+    border: 2px dashed #b9c3cd; border-radius: 10px; padding: 24px; text-align: center;
+    color: var(--muted); margin-bottom: 10px; background: #fafbfc;
+  }
+  .drop.over { border-color: var(--amber); background: var(--amber-soft); }
   .hint { font-size: 13px; color: var(--muted); }
   .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
-  .chip { display: flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; background: #fafcfe; font-size: 13px; }
-  .money { text-align: right; font-variant-numeric: tabular-nums; }
-  .checkline { padding: 3px 0; font-size: 14px; }
-  .checkline.warn { color: var(--bad); font-weight: 600; }
+  .chip {
+    display: flex; align-items: center; gap: 7px; border: 1px solid var(--line);
+    border-left: 3px solid var(--amber); border-radius: 7px; padding: 4px 9px;
+    background: #fafbfc; font-size: 13px;
+  }
+  .money { text-align: right; font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-nums; }
+  .checkline { padding: 5px 10px; font-size: 14px; border-left: 3px solid var(--ok); margin: 3px 0; background: var(--ok-soft); border-radius: 0 6px 6px 0; }
+  .checkline.warn { color: var(--bad); font-weight: 600; border-left-color: var(--bad); background: var(--bad-soft); }
   .checkline.ok { color: var(--ok); }
-  .totalrow td { font-weight: 700; border-top: 2px solid var(--ink); }
+  .totalrow td { font-weight: 700; border-top: 2px solid var(--navy); background: var(--amber-soft); }
   details.paste { margin-top: 8px; }
+  details.paste summary { cursor: pointer; }
   #toast {
     position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
-    background: var(--ink); color: #fff; padding: 9px 16px; border-radius: 8px;
+    background: var(--navy); color: #fff; padding: 10px 18px; border-radius: 8px;
+    border-left: 4px solid var(--amber);
     opacity: 0; transition: opacity .25s; pointer-events: none; max-width: 90%;
   }
   #toast.show { opacity: 1; }
   .toolbar { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; margin-bottom: 8px; }
+  @media (prefers-reduced-motion: reduce) { #toast { transition: none; } }
   @media print {
     body { background: #fff; }
-    .no-print, .toolbar { display: none !important; }
-    .card { border: none; padding: 0; }
+    .mast, .no-print, .toolbar { display: none !important; }
+    .card { border: none; padding: 0; box-shadow: none; }
     .tablewrap { max-height: none; overflow: visible; border: none; }
-    th { position: static; }
+    th { position: static; background: #fff; color: #444; }
+    .totalrow td { background: #fff; }
+    .checkline, .checkline.warn { background: #fff; }
   }
 </style>
 </head>
 <body>
+<header class="mast no-print">
+  <svg class="jet" viewBox="0 0 240 84" aria-hidden="true">
+    <path fill="#f4f0e6" d="M8 44 C 34 30, 120 24, 178 30 C 204 33, 222 39, 231 45 C 233 46.5, 232 48.5, 229 50 C 214 56, 168 60, 118 60 C 70 60, 28 54, 10 48 C 6 46.5, 5.5 45.5, 8 44 Z"/>
+    <path fill="#f4f0e6" d="M20 46 L34 10 L52 10 L42 44 Z"/>
+    <path fill="#f4f0e6" d="M30 10 L60 10 L56 17 L27 17 Z"/>
+    <path fill="#f4f0e6" d="M98 56 L146 56 L122 80 L86 70 Z"/>
+    <ellipse fill="#f4f0e6" cx="74" cy="30" rx="17" ry="7"/>
+    <path fill="var(--navy)" d="M196 36 C 205 37.5, 213 40, 219 43 L 208 47 C 202 44, 198 40, 196 36 Z"/>
+    <path fill="var(--amber)" d="M8 44 C 20 38, 44 33, 72 31 L 74 36 C 48 38, 24 42, 10 48 C 6 46.5, 5.5 45.5, 8 44 Z"/>
+    <text x="132" y="49" font-family="IBM Plex Mono, monospace" font-size="11" font-weight="600" fill="var(--navy)" letter-spacing="1">TOP GUN</text>
+  </svg>
+  <div class="mast-inner">
+    <div class="greeting">Good Morning, Top Gun Kelley</div>
+    <div class="wordmark"><span class="fuel">Fuel</span> Bill Splitter</div>
+    <div class="tagline">World Fuel invoices, matched to the flight log and split by who was flying.
+      Runs entirely in this tab — nothing is uploaded anywhere.</div>
+  </div>
+</header>
 <main>
   <div class="no-print">
-    <h1>Fuel Bill Splitter</h1>
-    <p class="sub">Match World Fuel invoices to Airplane Manager flight legs, and split fuel cost by
-      who was flying. Everything runs in this browser tab — nothing is uploaded anywhere.</p>
 
     <div class="card" id="settingsCard">
       <h2>Setup</h2>
