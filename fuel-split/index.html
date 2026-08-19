@@ -156,6 +156,12 @@
   .totalrow td { font-weight: 700; border-top: 2px solid var(--navy); background: var(--amber-soft); }
   details.paste { margin-top: 8px; }
   details.paste summary { cursor: pointer; }
+  .trip-strip { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+  .trip-strip > div { flex: 1 1 160px; }
+  .trip-strip select, .trip-strip input { width: 100%; font-size: 17px; padding: 12px; }
+  .trip-strip button { flex: 1 1 100%; font-family: var(--display); font-size: 20px; letter-spacing: .12em; text-transform: uppercase; }
+  @media (min-width: 641px) { .trip-strip button { flex: 0 0 auto; padding: 12px 26px; } }
+  #importBox > summary { cursor: pointer; }
   .bill { border: 1px solid var(--line); border-left: 4px solid var(--amber); border-radius: 10px; padding: 14px; margin-bottom: 14px; }
   .bill-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
   .bill-name { font-family: var(--display); font-weight: 700; font-size: 24px; letter-spacing: .05em; text-transform: uppercase; color: var(--navy); }
@@ -347,34 +353,52 @@
   <div class="no-print">
 
     <div class="card">
-      <h2><span class="step">1</span>Flight log (Airplane Manager export)</h2>
-      <div class="row">
+      <h2><span class="step">1</span>Log the trip</h2>
+      <div class="trip-strip">
         <div>
-          <label>CSV export (Excel exports: open and Save As → CSV)</label>
-          <input id="legsFile" type="file" accept=".csv,.txt,text/csv">
+          <label for="tripTail">✈️ Airplane</label>
+          <select id="tripTail"></select>
         </div>
+        <div>
+          <label for="tripFamily">👥 Family on board</label>
+          <select id="tripFamily"></select>
+        </div>
+        <div>
+          <label for="tripDate">📅 Date</label>
+          <input id="tripDate" type="date">
+        </div>
+        <button id="logTrip" type="button" class="primary">＋ Log trip</button>
       </div>
-      <details class="paste">
-        <summary class="hint">…or paste CSV text</summary>
-        <textarea id="legsPaste" placeholder="Date,Aircraft,From,To,Passenger&#10;06/03/2026,N45XX,KAUS,KASE,Smith"></textarea>
-        <button id="legsPasteBtn" type="button">Load pasted CSV</button>
+      <details id="importBox" style="margin-top:12px">
+        <summary class="hint">Import the Airplane Manager log instead (CSV)</summary>
+        <div class="row" style="margin-top:10px">
+          <div>
+            <label>CSV export (Excel exports: open and Save As → CSV)</label>
+            <input id="legsFile" type="file" accept=".csv,.txt,text/csv">
+          </div>
+        </div>
+        <details class="paste">
+          <summary class="hint">…or paste CSV text</summary>
+          <textarea id="legsPaste" placeholder="Date,Aircraft,From,To,Passenger&#10;06/03/2026,N45XX,KAUS,KASE,Smith"></textarea>
+          <button id="legsPasteBtn" type="button">Load pasted CSV</button>
+        </details>
+        <div id="mappingArea" hidden>
+          <p class="hint" style="margin-bottom:4px">Check which columns hold each field:</p>
+          <div class="row" id="mappingRow"></div>
+          <button id="applyMapping" type="button" class="primary" style="margin-top:8px">Use these columns</button>
+        </div>
+        <div id="ownerMapArea" hidden>
+          <p class="hint" style="margin:10px 0 0">Who is each of these? (remembered for next time)</p>
+          <div class="chips" id="ownerChips"></div>
+        </div>
       </details>
-      <div id="mappingArea" hidden>
-        <p class="hint" style="margin-bottom:4px">Check which columns hold each field:</p>
-        <div class="row" id="mappingRow"></div>
-        <button id="applyMapping" type="button" class="primary" style="margin-top:8px">Use these columns</button>
-      </div>
-      <div id="ownerMapArea" hidden>
-        <p class="hint" style="margin:10px 0 0">Who is each of these? (remembered for next time)</p>
-        <div class="chips" id="ownerChips"></div>
-      </div>
       <div id="legsArea" hidden style="margin-top:12px">
         <div class="hint" id="legsCount"></div>
         <div class="tablewrap"><table id="legsTable"></table></div>
       </div>
       <div style="margin-top:10px">
-        <button id="addLeg" type="button">+ Add flight by hand</button>
-        <span class="hint">for a flight that's missing from the log</span>
+        <button id="addLeg" type="button">+ Add flight with route &amp; hours</button>
+        <span class="hint">the detailed version, for the missing-bill check</span>
       </div>
     </div>
 
@@ -634,7 +658,7 @@ function renderSettings() {
       '<button type="button" class="danger" title="Remove">×</button>';
     div.querySelectorAll("input").forEach((inp) => inp.addEventListener("change", () => {
       state.aircraft[i][inp.dataset.k] = inp.dataset.k === "gph" ? (inp.value === "" ? null : +inp.value) : inp.value.trim();
-      save(); rematchAll(); renderFuel(); renderStatement();
+      save(); rematchAll(); renderTripEntry(); renderFuel(); renderStatement();
     }));
     div.querySelector("button").addEventListener("click", () => {
       state.aircraft.splice(i, 1); save(); renderSettings();
@@ -649,7 +673,7 @@ $("addAircraft").addEventListener("click", () => {
 $("familiesInput").addEventListener("change", () => {
   state.families = $("familiesInput").value.split(",").map((s) => s.trim()).filter(Boolean);
   if (!state.families.length) state.families = ["CJIG", "VIRTUS", "ETAP", "ZEMOG"];
-  save(); renderOwnerChips(); renderLegs(); renderFuel(); renderStatement();
+  save(); renderTripEntry(); renderOwnerChips(); renderLegs(); renderFuel(); renderStatement();
 });
 
 // ---------- flight log ----------
@@ -1013,14 +1037,47 @@ function renderFuel() {
   });
 }
 
-// The planes are a fixed fleet, so tails are picked, not typed.
+// The planes are a fixed fleet, so tails are picked, not typed. Labels show
+// the model when Settings knows it: "N929MM — Citation CJ1+".
+function tailLabel(t) {
+  const a = state.aircraft.find((x) => FM.normTail(x.tail) === t);
+  return a && a.label ? t + " — " + a.label : t;
+}
 function tailOptionsHTML(current) {
   const tails = knownTails();
   const cur = FM.normTail(current);
   if (cur && !tails.includes(cur)) tails.push(cur);
   return '<option value="">tail?</option>' +
-    tails.map((t) => "<option" + (t === cur ? " selected" : "") + ">" + esc(t) + "</option>").join("");
+    tails.map((t) => '<option value="' + esc(t) + '"' + (t === cur ? " selected" : "") + ">" + esc(tailLabel(t)) + "</option>").join("");
 }
+
+// ---------- quick trip logger: plane + family + date, one tap ----------
+function renderTripEntry() {
+  const tailSel = $("tripTail");
+  const curTail = tailSel.value;
+  const fleet = state.aircraft.filter((a) => a.tail);
+  tailSel.innerHTML = fleet.map((a) =>
+    '<option value="' + esc(FM.normTail(a.tail)) + '"' + (FM.normTail(a.tail) === curTail ? " selected" : "") + ">" +
+    esc(a.tail + (a.label ? " — " + a.label : "")) + "</option>").join("");
+  const famSel = $("tripFamily");
+  const curFam = famSel.value;
+  famSel.innerHTML = state.families.map((f) =>
+    "<option" + (f === curFam ? " selected" : "") + ">" + esc(f) + "</option>").join("");
+  if (!$("tripDate").value) {
+    const now = new Date();
+    $("tripDate").value = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0");
+  }
+}
+$("logTrip").addEventListener("click", () => {
+  const tail = $("tripTail").value;
+  const family = $("tripFamily").value;
+  const date = $("tripDate").value;
+  if (!tail || !family || !date) { toast("Pick the plane, the family, and the date."); return; }
+  state.legs.push({ date, tail, from: "", to: "", owner: "", hours: null, familyOverride: family, manual: true });
+  save(); rematchAll();
+  renderLegs(); renderFuel(); renderStatement();
+  toast("Trip logged — " + tailLabel(tail) + " · " + family + " · " + date);
+});
 
 // ---------- statement ----------
 
@@ -1218,7 +1275,7 @@ $("clearAll").addEventListener("click", () => {
 });
 
 function renderAll() {
-  renderSettings(); renderOwnerChips(); renderLegs(); renderFuel(); renderStatement();
+  renderSettings(); renderTripEntry(); renderOwnerChips(); renderLegs(); renderFuel(); renderStatement();
 }
 load();
 renderAll();
