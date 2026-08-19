@@ -139,6 +139,10 @@
         <div class="hint" id="legsCount"></div>
         <div class="tablewrap"><table id="legsTable"></table></div>
       </div>
+      <div style="margin-top:10px">
+        <button id="addLeg" type="button">+ Add flight by hand</button>
+        <span class="hint">for a flight that's missing from the log</span>
+      </div>
     </div>
 
     <div class="card">
@@ -149,11 +153,14 @@
         <input id="pdfFiles" type="file" accept=".pdf,application/pdf" multiple hidden>
         <div class="hint">Parsed fields show below for checking — nothing is billed straight off a PDF.</div>
       </div>
+      <div style="margin-bottom:4px">
+        <button id="addManual" type="button">+ Add bill by hand</button>
+        <span class="hint">lost or missing invoice — type in the numbers yourself</span>
+      </div>
       <details class="paste">
-        <summary class="hint">…or paste invoice text / add a line by hand</summary>
+        <summary class="hint">…or paste invoice text</summary>
         <textarea id="invoicePaste" placeholder="Paste the text of one invoice here"></textarea>
         <button id="invoicePasteBtn" type="button">Extract from pasted text</button>
-        <button id="addManual" type="button">Add blank line</button>
       </details>
       <div id="fuelArea" hidden style="margin-top:12px">
         <div class="hint" id="fuelCount"></div>
@@ -314,7 +321,9 @@ $("applyMapping").addEventListener("click", () => {
     });
   }
   legs.sort((a, b) => (a.date < b.date ? -1 : 1));
-  state.legs = legs;
+  // Hand-entered flights survive a fresh log load; the export replaces only
+  // what came from the export.
+  state.legs = legs.concat(state.legs.filter((l) => l.manual));
   state.colMap = map;
   state.pendingRows = null;
   // A new log invalidates old manual leg choices — indexes moved.
@@ -361,23 +370,56 @@ function renderOwnerChips() {
   }
 }
 
+function familySelectHTML(leg) {
+  return "<select>" +
+    '<option value="">' + (state.ownerMap[leg.owner.toLowerCase()] ? esc(state.ownerMap[leg.owner.toLowerCase()]) + " (auto)" : "—") + "</option>" +
+    state.families.map((f) => '<option value="' + esc(f) + '"' + (leg.familyOverride === f ? " selected" : "") + ">" + esc(f) + "</option>").join("") +
+    "</select>";
+}
+
+// Removing a leg shifts every index after it, and matched fuel lines point at
+// legs by index — fix them up or the money lands on the wrong family.
+function removeLeg(i) {
+  state.legs.splice(i, 1);
+  for (const f of state.fuel) {
+    if (f.matchIndex === i) { f.matchIndex = -1; if (f.matchStatus === "manual") f.matchStatus = ""; }
+    else if (f.matchIndex > i) f.matchIndex--;
+  }
+  rematchAll();
+  save(); renderLegs(); renderFuel(); renderStatement();
+}
+
 function renderLegs() {
   $("legsArea").hidden = !state.legs.length;
   if (!state.legs.length) return;
   $("legsCount").textContent = state.legs.length + " legs loaded.";
+  ensureTailsDatalist();
   const t = $("legsTable");
-  t.innerHTML = "<tr><th>Date</th><th>Tail</th><th>Route</th><th>Owner (from log)</th><th>Family</th></tr>";
+  t.innerHTML = "<tr><th>Date</th><th>Tail</th><th>Route</th><th>Owner (from log)</th><th>Family</th><th></th></tr>";
   state.legs.forEach((leg, i) => {
     const tr = document.createElement("tr");
-    const fam = legFamily(leg);
-    tr.innerHTML =
-      "<td>" + esc(leg.date) + "</td><td>" + esc(leg.tail) + "</td>" +
-      "<td>" + esc(leg.from || "?") + " → " + esc(leg.to || "?") + "</td>" +
-      "<td>" + esc(leg.owner) + "</td>" +
-      "<td><select>" +
-        '<option value="">' + (state.ownerMap[leg.owner.toLowerCase()] ? esc(state.ownerMap[leg.owner.toLowerCase()]) + " (auto)" : "—") + "</option>" +
-        state.families.map((f) => '<option value="' + esc(f) + '"' + (leg.familyOverride === f ? " selected" : "") + ">" + esc(f) + "</option>").join("") +
-      "</select>" + "</td>";
+    if (leg.manual) {
+      tr.innerHTML =
+        '<td><input type="date" value="' + esc(leg.date) + '" data-k="date"></td>' +
+        '<td><input list="tails" style="width:90px" value="' + esc(leg.tail) + '" data-k="tail" placeholder="N123AB"></td>' +
+        '<td><input style="width:64px" value="' + esc(leg.from) + '" data-k="from" placeholder="From"> → ' +
+          '<input style="width:64px" value="' + esc(leg.to) + '" data-k="to" placeholder="To"></td>' +
+        '<td class="hint">added by hand</td>' +
+        "<td>" + familySelectHTML(leg) + "</td>" +
+        '<td><button type="button" class="danger" title="Delete">×</button></td>';
+      tr.querySelectorAll("input").forEach((inp) => inp.addEventListener("change", () => {
+        const k = inp.dataset.k;
+        leg[k] = k === "tail" ? FM.normTail(inp.value) : k === "date" ? inp.value : FM.normAirport(inp.value);
+        save(); rematchAll(); renderLegs(); renderFuel(); renderStatement();
+      }));
+      tr.querySelector("button").addEventListener("click", () => removeLeg(i));
+    } else {
+      tr.innerHTML =
+        "<td>" + esc(leg.date) + "</td><td>" + esc(leg.tail) + "</td>" +
+        "<td>" + esc(leg.from || "?") + " → " + esc(leg.to || "?") + "</td>" +
+        "<td>" + esc(leg.owner) + "</td>" +
+        "<td>" + familySelectHTML(leg) + "</td><td></td>";
+    }
     tr.querySelector("select").addEventListener("change", (e) => {
       leg.familyOverride = e.target.value;
       save(); renderFuel(); renderStatement();
@@ -385,6 +427,11 @@ function renderLegs() {
     t.appendChild(tr);
   });
 }
+
+$("addLeg").addEventListener("click", () => {
+  state.legs.push({ date: "", tail: "", from: "", to: "", owner: "", familyOverride: "", manual: true });
+  save(); renderLegs();
+});
 
 // ---------- fuel entries ----------
 
@@ -473,7 +520,6 @@ function renderFuel() {
   const t = $("fuelTable");
   t.innerHTML = "<tr><th>Status</th><th>Date</th><th>Tail</th><th>Airport</th><th>Gallons</th>" +
     "<th>Total $</th><th>Invoice #</th><th>Matched leg</th><th>Family</th><th>Source</th><th></th></tr>";
-  const tailOpts = knownTails();
   state.fuel.forEach((f) => {
     const tr = document.createElement("tr");
     const fam = entryFamily(f);
@@ -516,9 +562,13 @@ function renderFuel() {
     });
     t.appendChild(tr);
   });
+  ensureTailsDatalist();
+}
+
+function ensureTailsDatalist() {
   let dl = document.getElementById("tails");
   if (!dl) { dl = document.createElement("datalist"); dl.id = "tails"; document.body.appendChild(dl); }
-  dl.innerHTML = tailOpts.map((x) => "<option>" + esc(x) + "</option>").join("");
+  dl.innerHTML = knownTails().map((x) => "<option>" + esc(x) + "</option>").join("");
 }
 
 // ---------- statement ----------
