@@ -156,6 +156,19 @@
   .totalrow td { font-weight: 700; border-top: 2px solid var(--navy); background: var(--amber-soft); }
   details.paste { margin-top: 8px; }
   details.paste summary { cursor: pointer; }
+  .bill { border: 1px solid var(--line); border-left: 4px solid var(--amber); border-radius: 10px; padding: 14px; margin-bottom: 14px; }
+  .bill-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+  .bill-name { font-family: var(--display); font-weight: 700; font-size: 24px; letter-spacing: .05em; text-transform: uppercase; color: var(--navy); }
+  .bill-meta { font: 500 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .bill-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .bill-actions a, .bill-actions button {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    border: 1px solid var(--line); border-radius: 8px; padding: 9px 14px; min-height: 44px;
+    background: #f5f7f9; color: var(--ink); text-decoration: none; font-weight: 500; font-size: 15px; cursor: pointer;
+  }
+  .bill-actions a:hover, .bill-actions button:hover { background: #ebeef2; }
+  @media (max-width: 640px) { .bill-actions a, .bill-actions button { flex: 1 1 40%; } }
+
   /* Settings is deliberately a small, quiet tab: the fleet and families are
      fixed in daily use and only change behind this click. */
   #settingsBox { background: none; border: none; box-shadow: none; padding: 6px 0 0; }
@@ -277,6 +290,13 @@
     th { position: static; background: #fff; color: #444; }
     .totalrow td { background: #fff; }
     .checkline, .checkline.warn { background: #fff; }
+    /* Printing one family's bill: only that bill, nothing else. */
+    body.print-bill #statementCard { display: none !important; }
+    body.print-bill #billsCard { display: block !important; }
+    body.print-bill #billsCard > .row, body.print-bill #billsCard h2 { display: none !important; }
+    body.print-bill .bill { display: none; border: none; padding: 0; }
+    body.print-bill .bill.print-target { display: block; }
+    body.print-bill .bill-actions { display: none !important; }
   }
 </style>
 </head>
@@ -396,6 +416,22 @@
       <button id="printBtn" type="button">Print</button>
     </div>
     <div id="statementBody"></div>
+  </div>
+
+  <div class="card no-print" id="billsCard" hidden>
+    <h2><span class="step">4</span>Family bills</h2>
+    <div class="row" style="margin-bottom:12px">
+      <div>
+        <label for="billFrom">From month</label>
+        <select id="billFrom"></select>
+      </div>
+      <div>
+        <label for="billTo">Through month</label>
+        <select id="billTo"></select>
+      </div>
+      <span class="hint" style="align-self:center">each family's itemized bill for the period — email, text, print, or export it</span>
+    </div>
+    <div id="billsBody"></div>
   </div>
 
   <details class="card no-print" id="settingsBox">
@@ -526,6 +562,7 @@ const FM = FuelMatch;
 const STORE_KEY = "fuelsplit-v1";
 
 let state = {
+  billFrom: "", billTo: "",   // family-bill period, YYYY-MM or "" for open-ended
   // Pre-loaded with the group's fleet; adjust in Settings at the bottom.
   aircraft: [
     { tail: "N929MM", label: "Citation CJ1+", gph: 120 },
@@ -1054,7 +1091,90 @@ function renderStatement() {
       " line(s) has no family yet — fix the matches or set a family in step 2.</p>";
   }
   $("statementBody").innerHTML = html;
+  renderBills(months);
 }
+
+// ---------- per-family bills: period picker, itemized, send/print/export ----------
+
+function billPeriodLabel() {
+  const f = state.billFrom, t = state.billTo;
+  if (!f && !t) return "all dates";
+  if (f && t) return f === t ? f : f + " through " + t;
+  return f ? "from " + f : "through " + t;
+}
+
+function renderBills(months) {
+  const asc = [...months].sort();
+  for (const [id, key] of [["billFrom", "billFrom"], ["billTo", "billTo"]]) {
+    const sel = $(id);
+    const cur = state[key];
+    sel.innerHTML = '<option value="">' + (id === "billFrom" ? "start" : "latest") + "</option>" +
+      asc.map((m) => "<option" + (m === cur ? " selected" : "") + ">" + m + "</option>").join("");
+  }
+  const full = statementDataAll();
+  const inRange = full.lines.filter((l) => {
+    const m = (l.date || "").slice(0, 7);
+    if (state.billFrom && m < state.billFrom) return false;
+    if (state.billTo && m > state.billTo) return false;
+    return true;
+  });
+  const bills = FM.familyBills({ lines: inRange }).filter((b) => b.family !== "Unassigned");
+  $("billsCard").hidden = !bills.length;
+  const body = $("billsBody");
+  body.innerHTML = "";
+  const period = billPeriodLabel();
+  for (const bill of bills) {
+    const div = document.createElement("div");
+    div.className = "bill";
+    let html = '<div class="bill-head"><div class="bill-name">' + esc(bill.family) + "</div>" +
+      '<div class="bill-meta">' + esc(period) + " · " + bill.lines.length + " uplift" + (bill.lines.length > 1 ? "s" : "") + "</div></div>";
+    html += '<div class="tablewrap" style="max-height:none"><table><tr><th>Date</th><th>Tail</th><th>Airport</th>' +
+      '<th class="money">Gal</th><th class="money">Amount</th><th>Invoice #</th></tr>';
+    for (const l of bill.lines) {
+      html += "<tr><td>" + esc(l.date) + "</td><td>" + esc(l.tail) + "</td><td>" + esc(l.airport) +
+        '</td><td class="money">' + (l.gallons || "") + '</td><td class="money">' + money(l.total) +
+        "</td><td>" + esc(l.invoiceNumber) + "</td></tr>";
+    }
+    html += '<tr class="totalrow"><td colspan="3">Total due — ' + esc(bill.family) + '</td><td class="money">' +
+      Math.round(bill.gallons) + '</td><td class="money">' + money(bill.total) + "</td><td></td></tr></table></div>";
+    const text = FM.familyBillText(bill, period);
+    const subject = "Fuel bill — " + bill.family + " — " + period;
+    html += '<div class="bill-actions no-print">' +
+      '<a href="mailto:?subject=' + encodeURIComponent(subject) + "&body=" + encodeURIComponent(text) + '">📧 Email</a>' +
+      '<a href="sms:?&body=' + encodeURIComponent(subject + "\n\n" + text) + '">💬 Text</a>' +
+      '<button type="button" class="bill-print">🖨 Print</button>' +
+      '<button type="button" class="bill-csv">⬇ CSV</button></div>';
+    div.innerHTML = html;
+    div.querySelector(".bill-print").addEventListener("click", () => printBill(div));
+    div.querySelector(".bill-csv").addEventListener("click", () => {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([FM.familyBillCSV(bill)], { type: "text/csv" }));
+      a.download = "fuel-bill-" + bill.family.replace(/[^A-Za-z0-9-]+/g, "_") + "-" + period.replace(/[^A-Za-z0-9-]+/g, "_") + ".csv";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+    body.appendChild(div);
+  }
+}
+function statementDataAll() {
+  const legsWithFamily = state.legs.map((leg) => ({ ...leg, family: legFamily(leg) || "Unassigned" }));
+  return FM.buildStatement(state.fuel, legsWithFamily, null);
+}
+function printBill(div) {
+  document.body.classList.add("print-bill");
+  div.classList.add("print-target");
+  const done = () => {
+    document.body.classList.remove("print-bill");
+    div.classList.remove("print-target");
+    window.removeEventListener("afterprint", done);
+  };
+  window.addEventListener("afterprint", done);
+  window.print();
+  setTimeout(done, 3000); // iOS Safari doesn't always fire afterprint
+}
+$("billFrom").addEventListener("change", (e) => { state.billFrom = e.target.value; save(); renderStatement(); });
+$("billTo").addEventListener("change", (e) => { state.billTo = e.target.value; save(); renderStatement(); });
+
 $("monthSelect").addEventListener("change", renderStatement);
 $("downloadCsv").addEventListener("click", () => {
   const csv = FM.statementCSV(statementData());

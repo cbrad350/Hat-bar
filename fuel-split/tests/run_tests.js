@@ -204,6 +204,25 @@ const csvOut = FM.statementCSV(st);
 check("csv has header", csvOut.startsWith("Date,Family,Tail"));
 check("csv has smith rollup", csvOut.includes("Smith,2,750,5900.00"));
 
+// ---------- per-family bills ----------
+const bills = FM.familyBills(st);
+eq("bills family count", bills.length, 4);
+const smithBill = bills.find((b) => b.family === "Smith");
+eq("bill line count", smithBill.lines.length, 2);
+eq("bill total", smithBill.total, 5900);
+eq("bill gallons", smithBill.gallons, 750);
+check("bills sorted by family", bills[0].family <= bills[bills.length - 1].family);
+
+const billText = FM.familyBillText(smithBill, "2026-06");
+check("bill text names family", billText.includes("FUEL BILL — Smith"));
+check("bill text has period", billText.includes("Period: 2026-06"));
+check("bill text has total", billText.includes("TOTAL DUE: $5900.00"));
+check("bill text itemizes", billText.includes("2026-06-03") && billText.includes("2026-06-05"));
+
+const billCsv = FM.familyBillCSV(smithBill);
+check("bill csv header", billCsv.startsWith("Date,Tail,Airport"));
+check("bill csv total row", billCsv.includes("Total due,,,750,5900.00"));
+
 // ---------- durations ----------
 eq("dur decimal", FM.parseDuration("2.5"), 2.5);
 eq("dur h:mm", FM.parseDuration("2:30"), 2.5);

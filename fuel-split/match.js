@@ -399,10 +399,58 @@
     return out;
   }
 
+  // ---------- per-family bills ----------
+
+  // Group a statement's lines into one itemized bill per family.
+  function familyBills(statement) {
+    const by = {};
+    for (const l of statement.lines) {
+      if (!by[l.family]) by[l.family] = [];
+      by[l.family].push(l);
+    }
+    return Object.keys(by).sort().map((name) => {
+      const lines = by[name];
+      return {
+        family: name,
+        lines: lines,
+        total: lines.reduce((s, l) => s + l.total, 0),
+        gallons: lines.reduce((s, l) => s + l.gallons, 0),
+      };
+    });
+  }
+
+  // Plain-text rendering for an email or text message body.
+  function familyBillText(bill, period) {
+    const rows = bill.lines.map((l) =>
+      l.date + "  " + l.tail + "  " + (l.airport || "—") +
+      (l.gallons ? "  " + l.gallons + " gal" : "") +
+      "  $" + l.total.toFixed(2) +
+      (l.invoiceNumber ? "  (inv " + l.invoiceNumber + ")" : ""));
+    return "FUEL BILL — " + bill.family + "\n" +
+      "Period: " + (period || "all dates") + "\n" +
+      "―――――――――――――――――――――――\n" +
+      rows.join("\n") + "\n" +
+      "―――――――――――――――――――――――\n" +
+      "TOTAL DUE: $" + bill.total.toFixed(2) + "  (" + Math.round(bill.gallons) + " gal)\n";
+  }
+
+  function familyBillCSV(bill) {
+    const esc = (v) => {
+      v = String(v == null ? "" : v);
+      return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+    };
+    const rows = [["Date", "Tail", "Airport", "Gallons", "Amount", "Invoice #"]];
+    for (const l of bill.lines) rows.push([l.date, l.tail, l.airport, l.gallons, l.total.toFixed(2), l.invoiceNumber]);
+    rows.push([]);
+    rows.push(["Total due", "", "", Math.round(bill.gallons), bill.total.toFixed(2), ""]);
+    return rows.map((r) => r.map(esc).join(",")).join("\n") + "\n";
+  }
+
   const FuelMatch = {
     parseCSV, detectColumns, parseDateLoose, parseDuration, normTail, tailsEqual,
     normAirport, airportsEqual, dateDiffDays, extractInvoiceFields,
     matchFuelToLegs, buildStatement, statementCSV, monthlyChecks,
+    familyBills, familyBillText, familyBillCSV,
   };
 
   if (typeof module !== "undefined" && module.exports) module.exports = FuelMatch;
