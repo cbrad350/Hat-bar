@@ -64,6 +64,9 @@
   .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
   .chip { display: flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; background: #fafcfe; font-size: 13px; }
   .money { text-align: right; font-variant-numeric: tabular-nums; }
+  .checkline { padding: 3px 0; font-size: 14px; }
+  .checkline.warn { color: var(--bad); font-weight: 600; }
+  .checkline.ok { color: var(--ok); }
   .totalrow td { font-weight: 700; border-top: 2px solid var(--ink); }
   details.paste { margin-top: 8px; }
   #toast {
@@ -241,9 +244,10 @@ function renderSettings() {
     div.innerHTML =
       '<input style="width:110px" placeholder="N123AB" value="' + esc(a.tail) + '" data-k="tail">' +
       '<input style="width:110px" placeholder="Label" value="' + esc(a.label) + '" data-k="label">' +
+      '<input class="num" type="number" step="1" style="width:80px" placeholder="gal/hr" title="Typical fuel burn, gallons per hour — used to flag months where invoiced fuel falls short of hours flown" value="' + (a.gph == null ? "" : a.gph) + '" data-k="gph">' +
       '<button type="button" class="danger" title="Remove">×</button>';
     div.querySelectorAll("input").forEach((inp) => inp.addEventListener("change", () => {
-      state.aircraft[i][inp.dataset.k] = inp.value.trim();
+      state.aircraft[i][inp.dataset.k] = inp.dataset.k === "gph" ? (inp.value === "" ? null : +inp.value) : inp.value.trim();
       save(); rematchAll(); renderFuel(); renderStatement();
     }));
     div.querySelector("button").addEventListener("click", () => {
@@ -287,7 +291,7 @@ function loadLegsCSV(text) {
 }
 
 function renderMapping(header, guess) {
-  const fields = [["date", "Date"], ["tail", "Tail / aircraft"], ["from", "From"], ["to", "To"], ["owner", "Owner / passenger"]];
+  const fields = [["date", "Date"], ["tail", "Tail / aircraft"], ["from", "From"], ["to", "To"], ["owner", "Owner / passenger"], ["time", "Flight time (optional)"]];
   const rowEl = $("mappingRow");
   rowEl.innerHTML = "";
   for (const [key, label] of fields) {
@@ -317,6 +321,7 @@ $("applyMapping").addEventListener("click", () => {
       from: map.from >= 0 ? FM.normAirport(r[map.from]) : "",
       to: map.to >= 0 ? FM.normAirport(r[map.to]) : "",
       owner: map.owner >= 0 ? String(r[map.owner] || "").trim() : "",
+      hours: map.time >= 0 ? FM.parseDuration(r[map.time]) : null,
       familyOverride: "",
     });
   }
@@ -395,7 +400,7 @@ function renderLegs() {
   $("legsCount").textContent = state.legs.length + " legs loaded.";
   ensureTailsDatalist();
   const t = $("legsTable");
-  t.innerHTML = "<tr><th>Date</th><th>Tail</th><th>Route</th><th>Owner (from log)</th><th>Family</th><th></th></tr>";
+  t.innerHTML = "<tr><th>Date</th><th>Tail</th><th>Route</th><th>Hrs</th><th>Owner (from log)</th><th>Family</th><th></th></tr>";
   state.legs.forEach((leg, i) => {
     const tr = document.createElement("tr");
     if (leg.manual) {
@@ -404,12 +409,16 @@ function renderLegs() {
         '<td><input list="tails" style="width:90px" value="' + esc(leg.tail) + '" data-k="tail" placeholder="N123AB"></td>' +
         '<td><input style="width:64px" value="' + esc(leg.from) + '" data-k="from" placeholder="From"> → ' +
           '<input style="width:64px" value="' + esc(leg.to) + '" data-k="to" placeholder="To"></td>' +
+        '<td><input class="num" type="number" step="0.1" style="width:56px" value="' + (leg.hours == null ? "" : leg.hours) + '" data-k="hours" placeholder="hrs"></td>' +
         '<td class="hint">added by hand</td>' +
         "<td>" + familySelectHTML(leg) + "</td>" +
         '<td><button type="button" class="danger" title="Delete">×</button></td>';
       tr.querySelectorAll("input").forEach((inp) => inp.addEventListener("change", () => {
         const k = inp.dataset.k;
-        leg[k] = k === "tail" ? FM.normTail(inp.value) : k === "date" ? inp.value : FM.normAirport(inp.value);
+        leg[k] = k === "tail" ? FM.normTail(inp.value)
+          : k === "date" ? inp.value
+          : k === "hours" ? (inp.value === "" ? null : +inp.value)
+          : FM.normAirport(inp.value);
         save(); rematchAll(); renderLegs(); renderFuel(); renderStatement();
       }));
       tr.querySelector("button").addEventListener("click", () => removeLeg(i));
@@ -417,6 +426,7 @@ function renderLegs() {
       tr.innerHTML =
         "<td>" + esc(leg.date) + "</td><td>" + esc(leg.tail) + "</td>" +
         "<td>" + esc(leg.from || "?") + " → " + esc(leg.to || "?") + "</td>" +
+        "<td>" + (leg.hours == null ? "" : leg.hours.toFixed(1)) + "</td>" +
         "<td>" + esc(leg.owner) + "</td>" +
         "<td>" + familySelectHTML(leg) + "</td><td></td>";
     }
@@ -512,7 +522,7 @@ function legLabel(leg) {
 
 function renderFuel() {
   $("fuelArea").hidden = !state.fuel.length;
-  $("statementCard").hidden = !state.fuel.length;
+  $("statementCard").hidden = !state.fuel.length && !state.legs.length;
   if (!state.fuel.length) return;
   const review = state.fuel.filter((f) => f.matchStatus === "review" || f.matchStatus === "unmatched").length;
   $("fuelCount").textContent = state.fuel.length + " fuel line" + (state.fuel.length > 1 ? "s" : "") +
@@ -580,15 +590,41 @@ function statementData() {
 }
 
 function renderStatement() {
-  if (!state.fuel.length) { $("statementCard").hidden = true; return; }
+  // Flights with no bills at all is exactly what the missing-bill check
+  // exists to flag, so legs alone are enough to show the statement card.
+  if (!state.fuel.length && !state.legs.length) { $("statementCard").hidden = true; return; }
   $("statementCard").hidden = false;
   const sel = $("monthSelect");
-  const months = [...new Set(state.fuel.map((f) => (f.date || "").slice(0, 7)).filter((m) => m.length === 7))].sort().reverse();
+  const months = [...new Set(
+    state.fuel.map((f) => (f.date || "").slice(0, 7))
+      .concat(state.legs.map((l) => (l.date || "").slice(0, 7)))
+      .filter((m) => m.length === 7))].sort().reverse();
   const current = sel.value;
   sel.innerHTML = '<option value="">All dates</option>' + months.map((m) => "<option" + (m === current ? " selected" : "") + ">" + m + "</option>").join("");
   const st = statementData();
   const names = Object.keys(st.families).sort();
-  let html = "<h2>Fuel cost by family" + (sel.value ? " — " + sel.value : "") + "</h2>";
+  let html = "";
+
+  // Missing-bill checks: flag months where the flying outruns the invoices.
+  const gphByTail = {};
+  for (const a of state.aircraft) {
+    if (a.tail && a.gph > 0) gphByTail[FM.normTail(a.tail)] = a.gph;
+  }
+  const checks = FM.monthlyChecks(state.legs, state.fuel, gphByTail, sel.value || null);
+  if (checks.length) {
+    const warns = checks.filter((c) => c.level === "warn");
+    html += "<h2>Missing-bill check" + (warns.length ? " — " + warns.length + " flag" + (warns.length > 1 ? "s" : "") : "") + "</h2>";
+    html += '<div style="margin-bottom:14px">';
+    for (const c of checks) {
+      html += '<div class="checkline ' + c.level + '">' + (c.level === "warn" ? "⚠ " : "✓ ") + esc(c.message) + "</div>";
+    }
+    if (!Object.keys(gphByTail).length) {
+      html += '<div class="hint no-print">Tip: set a gal/hr burn rate for each aircraft in Setup and map the flight-time column to also catch months where the invoiced gallons fall short of the hours flown.</div>';
+    }
+    html += "</div>";
+  }
+
+  html += "<h2>Fuel cost by family" + (sel.value ? " — " + sel.value : "") + "</h2>";
   html += '<div class="tablewrap" style="max-height:none"><table><tr><th>Family</th><th>Uplifts</th><th class="money">Gallons</th><th class="money">Total</th></tr>';
   let grand = 0, grandGal = 0, grandCount = 0;
   for (const n of names) {

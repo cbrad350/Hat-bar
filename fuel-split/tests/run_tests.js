@@ -204,6 +204,76 @@ const csvOut = FM.statementCSV(st);
 check("csv has header", csvOut.startsWith("Date,Family,Tail"));
 check("csv has smith rollup", csvOut.includes("Smith,2,750,5900.00"));
 
+// ---------- durations ----------
+eq("dur decimal", FM.parseDuration("2.5"), 2.5);
+eq("dur h:mm", FM.parseDuration("2:30"), 2.5);
+eq("dur h+mm", FM.parseDuration("1+45"), 1.75);
+eq("dur h:mm:ss", FM.parseDuration("2:30:00"), 2.5);
+eq("dur integer", FM.parseDuration("3"), 3);
+eq("dur zero", FM.parseDuration("0"), null);
+eq("dur garbage", FM.parseDuration("N/A"), null);
+eq("dur empty", FM.parseDuration(""), null);
+
+// ---------- column detection: flight time ----------
+const cols3 = FM.detectColumns(["Date", "Tail", "Dep Time", "Arr Time", "Flight Time", "From", "To", "Passenger"]);
+eq("detect flight time not dep/arr time", cols3.time, 4);
+eq("detect date skips times", cols3.date, 0);
+
+// ---------- monthly missing-bill checks ----------
+const chkLegs = [
+  { date: "2026-06-03", tail: "N45XX", hours: 2.0 },
+  { date: "2026-06-05", tail: "N45XX", hours: 2.0 },
+  { date: "2026-06-08", tail: "N525CJ", hours: 1.5 },
+  { date: "2026-07-02", tail: "N45XX", hours: 3.0 },
+];
+const chkFuel = [
+  { date: "2026-06-03", tail: "N45XX", gallons: 400 },
+  { date: "2026-06-05", tail: "N45XX", gallons: 380 },
+  { date: "2026-07-15", tail: "N525CJ", gallons: 100 },
+];
+const gph = { N45XX: 200, N525CJ: 120 };
+const checks = FM.monthlyChecks(chkLegs, chkFuel, gph, null);
+
+// N45XX June: 4 hrs * 200 = 800 expected, 780 invoiced -> ok.
+let c = checks.find((x) => x.tail === "N45XX" && x.month === "2026-06");
+eq("check ok level", c.level, "ok");
+check("check ok mentions complete", c.message.includes("looks complete"));
+
+// N525CJ June: flights but zero bills -> warn.
+c = checks.find((x) => x.tail === "N525CJ" && x.month === "2026-06");
+eq("check no-bills level", c.level, "warn");
+check("check no-bills message", c.message.includes("no fuel bills"));
+
+// N45XX July: 3 hrs * 200 = 600 expected, 0 gal but 0 bills -> the
+// zero-bill flag wins.
+c = checks.find((x) => x.tail === "N45XX" && x.month === "2026-07");
+eq("check july level", c.level, "warn");
+
+// N525CJ July: a bill with no flights that month -> warn the other way.
+c = checks.find((x) => x.tail === "N525CJ" && x.month === "2026-07");
+eq("check orphan bill level", c.level, "warn");
+check("check orphan bill message", c.message.includes("no flights"));
+
+// Shortfall: bills exist but gallons far under the hours flown.
+const shortChecks = FM.monthlyChecks(
+  [{ date: "2026-06-03", tail: "N45XX", hours: 10 }],
+  [{ date: "2026-06-03", tail: "N45XX", gallons: 500 }],
+  { N45XX: 200 }, null);
+eq("check shortfall level", shortChecks[0].level, "warn");
+check("check shortfall message", shortChecks[0].message.includes("possible missing fuel bill"));
+
+// Same data without a burn rate: no volume opinion, structural check only.
+const noGph = FM.monthlyChecks(
+  [{ date: "2026-06-03", tail: "N45XX", hours: 10 }],
+  [{ date: "2026-06-03", tail: "N45XX", gallons: 500 }],
+  {}, null);
+eq("check no-gph level", noGph[0].level, "ok");
+
+// Month filter narrows the report.
+const juneOnly = FM.monthlyChecks(chkLegs, chkFuel, gph, "2026-06");
+check("check month filter", juneOnly.every((x) => x.month === "2026-06"));
+eq("check month filter count", juneOnly.length, 2);
+
 // ---------- PDF extraction (synthetic Flate-compressed PDF) ----------
 function buildPdf(text) {
   const lines = text.split("\n");
