@@ -2,7 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#10161e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Top Gun Fuel">
 <title>Fuel Bill Splitter</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -161,6 +165,97 @@
   #toast.show { opacity: 1; }
   .toolbar { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; margin-bottom: 8px; }
   @media (prefers-reduced-motion: reduce) { #toast { transition: none; } }
+
+  /* ---------- lock screen: gunmetal flight-deck gate ---------- */
+  .lock {
+    position: fixed; inset: 0; z-index: 100; overflow: hidden;
+    background:
+      repeating-linear-gradient(0deg, transparent 0 46px, rgba(140,160,180,.05) 46px 47px),
+      repeating-linear-gradient(90deg, transparent 0 46px, rgba(140,160,180,.05) 46px 47px),
+      radial-gradient(120% 90% at 50% 10%, #2c3d52 0%, #1a2635 45%, #0d131b 100%);
+    color: #dfe6ec; display: flex; align-items: center; justify-content: center;
+    text-align: center; padding: 24px;
+    transition: opacity .8s ease, transform .8s ease;
+  }
+  .lock.lift { opacity: 0; transform: translateY(-4%); pointer-events: none; }
+  .radar {
+    position: absolute; width: 640px; height: 640px; left: 50%; top: 50%;
+    transform: translate(-50%, -50%); border-radius: 50%;
+    border: 1px solid rgba(120,150,180,.18); pointer-events: none;
+  }
+  .radar::before {
+    content: ""; position: absolute; inset: 90px; border-radius: 50%;
+    border: 1px solid rgba(120,150,180,.14);
+  }
+  .radar::after {
+    content: ""; position: absolute; inset: 0; border-radius: 50%;
+    background: conic-gradient(from 0deg, rgba(226,156,51,.22), transparent 70deg, transparent 360deg);
+    animation: sweep 4.5s linear infinite;
+  }
+  @keyframes sweep { to { transform: rotate(360deg); } }
+  .lock-jet {
+    position: absolute; width: 220px; top: 9%; right: 6%; opacity: .9;
+    filter: drop-shadow(0 0 18px rgba(226,156,51,.35)) drop-shadow(0 6px 8px rgba(0,0,0,.5));
+    animation: hover 5s ease-in-out infinite alternate;
+  }
+  @keyframes hover { from { transform: translateY(0) rotate(-2deg); } to { transform: translateY(14px) rotate(1deg); } }
+  .lock-inner { position: relative; max-width: 460px; width: 100%; }
+  .lock-eyebrow {
+    font: 600 11px var(--mono); letter-spacing: .32em; text-transform: uppercase;
+    color: #8fa3b5; margin-bottom: 18px; animation: cardin .9s ease both;
+  }
+  .lock-title {
+    font-family: var(--display); font-weight: 700; text-transform: uppercase;
+    font-size: 64px; line-height: .95; letter-spacing: .12em; color: #f2f5f8;
+    text-shadow: 0 0 26px rgba(226,156,51,.25); animation: cardin 1s .15s ease both;
+  }
+  .lock-title span {
+    display: block; color: var(--amber); font-size: 44px; letter-spacing: .3em;
+    text-shadow: 0 0 30px rgba(226,156,51,.5);
+  }
+  .lock-sub {
+    font: 500 12.5px var(--mono); letter-spacing: .14em; text-transform: uppercase;
+    color: #77899a; margin: 14px 0 30px; animation: cardin 1s .3s ease both;
+  }
+  @keyframes cardin {
+    from { opacity: 0; transform: scale(1.25); letter-spacing: .5em; filter: blur(3px); }
+    to   { opacity: 1; filter: blur(0); }
+  }
+  #lockForm { display: flex; flex-direction: column; gap: 12px; animation: cardin 1s .45s ease both; }
+  .lock-label { color: #9db0c1; text-transform: uppercase; letter-spacing: .18em; font-size: 11px; }
+  #pw {
+    background: rgba(8,12,17,.75); border: 1px solid #3c4f63; color: var(--amber);
+    font: 600 22px var(--mono); letter-spacing: .35em; text-align: center;
+    padding: 13px; border-radius: 9px; caret-color: var(--amber);
+  }
+  #pw:focus { outline: 2px solid var(--amber); box-shadow: 0 0 22px rgba(226,156,51,.35); }
+  #engage {
+    font-family: var(--display); font-size: 21px; letter-spacing: .28em; text-transform: uppercase;
+    padding: 13px; border-radius: 9px;
+  }
+  .lock-msg { min-height: 24px; margin-top: 14px; color: #ff9b8a; font-style: italic; font-size: 15px; }
+  .lock.denied .lock-inner { animation: shake .5s; }
+  @keyframes shake {
+    10%, 90% { transform: translateX(-2px); } 20%, 80% { transform: translateX(4px); }
+    30%, 70% { transform: translateX(-7px); } 40%, 60% { transform: translateX(7px); } 50% { transform: translateX(-4px); }
+  }
+  .lock-card {
+    font-family: var(--display); font-weight: 700; text-transform: uppercase;
+    font-size: 40px; letter-spacing: .18em; line-height: 1.15; color: #f2f5f8;
+    min-height: 120px; display: flex; align-items: center; justify-content: center;
+  }
+  .lock-card.quote { color: var(--amber); text-shadow: 0 0 30px rgba(226,156,51,.5); }
+  .lock-card .in { animation: cardin .7s ease both; }
+  @media (max-width: 640px) {
+    .lock-title { font-size: 46px; }
+    .lock-title span { font-size: 32px; }
+    .lock-jet { width: 132px; top: 6%; right: 2%; }
+    .lock-card { font-size: 29px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .radar::after, .lock-jet { animation: none; }
+    .lock-eyebrow, .lock-title, .lock-sub, #lockForm, .lock-card .in { animation: none; }
+  }
   @media print {
     body { background: #fff; }
     .mast, .no-print, .toolbar { display: none !important; }
@@ -173,6 +268,29 @@
 </style>
 </head>
 <body>
+<div id="lock" class="lock no-print">
+  <div class="radar" aria-hidden="true"></div>
+  <svg class="lock-jet" viewBox="0 0 240 84" aria-hidden="true">
+    <path fill="#f4f0e6" d="M8 44 C 34 30, 120 24, 178 30 C 204 33, 222 39, 231 45 C 233 46.5, 232 48.5, 229 50 C 214 56, 168 60, 118 60 C 70 60, 28 54, 10 48 C 6 46.5, 5.5 45.5, 8 44 Z"/>
+    <path fill="#f4f0e6" d="M20 46 L34 10 L52 10 L42 44 Z"/>
+    <path fill="#f4f0e6" d="M30 10 L60 10 L56 17 L27 17 Z"/>
+    <path fill="#f4f0e6" d="M98 56 L146 56 L122 80 L86 70 Z"/>
+    <ellipse fill="#f4f0e6" cx="74" cy="30" rx="17" ry="7"/>
+    <path fill="#182a3f" d="M196 36 C 205 37.5, 213 40, 219 43 L 208 47 C 202 44, 198 40, 196 36 Z"/>
+    <path fill="#e29c33" d="M8 44 C 20 38, 44 33, 72 31 L 74 36 C 48 38, 24 42, 10 48 C 6 46.5, 5.5 45.5, 8 44 Z"/>
+  </svg>
+  <div class="lock-inner" id="lockInner">
+    <div class="lock-eyebrow">Restricted · Authorized Flight Crew Only</div>
+    <div class="lock-title">Top Gun<span>Kelley</span></div>
+    <div class="lock-sub">Fuel Bill Splitter · Fightertown Accounting Div.</div>
+    <form id="lockForm">
+      <label class="lock-label" for="pw">Enter access code, aviator</label>
+      <input id="pw" type="password" autocomplete="current-password" placeholder="••••••••" aria-label="Access code">
+      <button id="engage" type="submit" class="primary">Engage</button>
+    </form>
+    <div id="lockMsg" class="lock-msg" role="alert"></div>
+  </div>
+</div>
 <header class="mast no-print">
   <svg class="jet" viewBox="0 0 240 84" aria-hidden="true">
     <path fill="#f4f0e6" d="M8 44 C 34 30, 120 24, 178 30 C 204 33, 222 39, 231 45 C 233 46.5, 232 48.5, 229 50 C 214 56, 168 60, 118 60 C 70 60, 28 54, 10 48 C 6 46.5, 5.5 45.5, 8 44 Z"/>
@@ -290,6 +408,123 @@
 <script src="pdf-text.js"></script>
 <script>
 "use strict";
+
+// ---------- lock screen: the opening ceremony ----------
+// A gag gate, not a vault: the page carries no data (everything lives in the
+// phone's own storage), so this keeps out curious passengers, not spies.
+(function () {
+  const HASH = "d2f129dd306d1d7a43fcfe047ef0dbb28275f5ed65f4636a28e2cae37b81d095";
+  const DJB2 = "65882c09";
+  const WINGS = "fbs-wings";
+  const lock = document.getElementById("lock");
+  const inner = document.getElementById("lockInner");
+  const form = document.getElementById("lockForm");
+  const msg = document.getElementById("lockMsg");
+  const denials = [
+    "Negative, Ghost Rider, the pattern is full.",
+    "Talk to me, Goose… that's not it.",
+    "Your ego's writing checks that code can't cash.",
+    "Tower says: try again, Maverick.",
+  ];
+  let denyN = 0;
+
+  async function sha256hex(s) {
+    if (crypto && crypto.subtle) {
+      const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+      return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, "0")).join("");
+    }
+    return null;
+  }
+  function djb2(s) { let h = 5381; for (const c of s) h = ((h * 33) ^ c.charCodeAt(0)) >>> 0; return h.toString(16); }
+
+  // Synthesized flyby: filtered noise swell + engine rumble. No movie audio
+  // lives in this file — the jet is ours.
+  function flyby() {
+    try {
+      const ac = new (window.AudioContext || window.webkitAudioContext)();
+      const dur = 1.9, sr = ac.sampleRate;
+      const buf = ac.createBuffer(1, sr * dur, sr);
+      const ch = buf.getChannelData(0);
+      for (let i = 0; i < ch.length; i++) ch[i] = Math.random() * 2 - 1;
+      const noise = ac.createBufferSource(); noise.buffer = buf;
+      const bp = ac.createBiquadFilter(); bp.type = "bandpass"; bp.Q.value = 1.1;
+      bp.frequency.setValueAtTime(250, ac.currentTime);
+      bp.frequency.exponentialRampToValueAtTime(2400, ac.currentTime + dur * 0.55);
+      bp.frequency.exponentialRampToValueAtTime(180, ac.currentTime + dur);
+      const g = ac.createGain();
+      g.gain.setValueAtTime(0.0001, ac.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.5, ac.currentTime + dur * 0.5);
+      g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + dur);
+      const osc = ac.createOscillator(); osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(50, ac.currentTime);
+      osc.frequency.linearRampToValueAtTime(34, ac.currentTime + dur);
+      const og = ac.createGain(); og.gain.value = 0.12;
+      noise.connect(bp).connect(g).connect(ac.destination);
+      osc.connect(og).connect(g);
+      noise.start(); osc.start(); noise.stop(ac.currentTime + dur); osc.stop(ac.currentTime + dur);
+    } catch (e) {}
+  }
+  function speak() {
+    try {
+      const u = new SpeechSynthesisUtterance("I feel the need... the need for speed.");
+      u.rate = 0.92; u.pitch = 0.75;
+      speechSynthesis.speak(u);
+    } catch (e) {}
+  }
+  function card(text, quote) {
+    inner.innerHTML = '<div class="lock-card' + (quote ? " quote" : "") + '"><span class="in">' + text + "</span></div>";
+  }
+  function lift() {
+    lock.classList.add("lift");
+    setTimeout(() => lock.remove(), 900);
+  }
+  function ceremony() {
+    const cards = [
+      ["PILOT AUTHENTICATED", 900, false],
+      ["GOOD MORNING,", 850, false],
+      ["TOP GUN KELLEY", 1100, false],
+      ["“I FEEL THE NEED…", 1000, true],
+      ["…THE NEED FOR SPEED.”", 1250, true],
+      ["CLEARED FOR TAKEOFF", 900, false],
+    ];
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) { lift(); return; }
+    let t = 0;
+    for (const [text, hold, quote] of cards) {
+      setTimeout(() => card(text, quote), t);
+      t += hold;
+    }
+    setTimeout(lift, t + 200);
+  }
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const v = document.getElementById("pw").value;
+    const h = await sha256hex(v);
+    const good = h ? h === HASH : djb2(v) === DJB2;
+    if (!good) {
+      msg.textContent = denials[denyN++ % denials.length];
+      lock.classList.remove("denied");
+      void lock.offsetWidth;
+      lock.classList.add("denied");
+      return;
+    }
+    try { localStorage.setItem(WINGS, "earned"); } catch (err) {}
+    flyby();
+    speak();
+    ceremony();
+  });
+  // Returning aviator: skip the password, keep a two-beat title splash.
+  let wings = null;
+  try { wings = localStorage.getItem(WINGS); } catch (e) {}
+  if (wings === "earned") {
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) { lift(); }
+    else {
+      card("GOOD MORNING,");
+      setTimeout(() => card("TOP GUN KELLEY"), 800);
+      setTimeout(lift, 1800);
+    }
+  }
+})();
+
 const FM = FuelMatch;
 const STORE_KEY = "fuelsplit-v1";
 
